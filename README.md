@@ -1,2 +1,4 @@
 # doc_all
-test
+#thirdpay.tar.gz
+tar -zxvf thirdpay.tar.gz .
+
