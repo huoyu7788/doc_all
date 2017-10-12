@@ -1,0 +1,791 @@
+CREATE TABLE `wm_return_head` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `vid` int(10) unsigned NOT NULL COMMENT '供应商id',
+  `return_id` bigint(20) unsigned NOT NULL COMMENT '返仓单号',
+  `order_id` bigint(20) unsigned NOT NULL COMMENT '用户订单号 售后返仓单此字段取原订单号',
+  `so_id` varchar(16) NOT NULL COMMENT 'SO单号',
+  `shipping_id` varchar(64) NOT NULL COMMENT '发货单号',
+  `it_amount` decimal(15,4) NOT NULL COMMENT '含税总额',
+  `nt_amount` decimal(15,4) NOT NULL COMMENT '未税总额',
+  `date` int(14) unsigned NOT NULL DEFAULT '0' COMMENT '返仓定损时间 在mis中的标记通过的时间 SO通过时间',
+  `day` varchar(16) NOT NULL COMMENT '数据同步时间，精确到天',
+  `status` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '单据状态 0-未核对,1-已核对',
+  `gen_evidence` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '是否生成凭证 0-未完成,1-已完成,2-作废',
+  `zone_id` varchar(16) DEFAULT '1000' COMMENT '区域id: 1000-北京,1001-天津, 1002-杭州',
+  `zone_name` varchar(32) NOT NULL DEFAULT '北京' COMMENT '区域名: 北京,天津,杭州',
+  `created_at` int(14) unsigned NOT NULL DEFAULT '0',
+  `updated_at` int(14) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_return_id` (`return_id`),
+  KEY `idx_vid` (`vid`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_so_id` (`so_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4095 DEFAULT CHARSET=utf8 COMMENT='物美退货单头';
+
+
+CREATE TABLE `wm_receipt_head` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `receipt_id` varchar(64) NOT NULL COMMENT '收货单号 业务ID',
+  `obd_id` varchar(64) NOT NULL COMMENT 'OBD单号',
+  `so_id` varchar(64) NOT NULL COMMENT '物美so单号',
+  `order_id` bigint(20) unsigned NOT NULL COMMENT '用户订单号',
+  `vid` int(10) unsigned NOT NULL COMMENT '供应商id',
+  `zone_id` varchar(16) NOT NULL DEFAULT '1000' COMMENT '区域id: 1000-北京,1001-天津, 1002-杭州',
+  `zone_name` varchar(32) NOT NULL DEFAULT '北京' COMMENT '区域名: 北京,天津,杭州',
+  `nt_amount` decimal(15,4) NOT NULL COMMENT '未税总额',
+  `it_amount` decimal(15,4) NOT NULL COMMENT '发货单成本',
+  `date` int(14) unsigned NOT NULL DEFAULT '0' COMMENT '发货日期',
+  `day` varchar(16) NOT NULL COMMENT '数据同步时间，精确到天',
+  `status` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '是否生成凭证 0-未完成,1-已完成,',
+  `gen_evidence` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '是否生成凭证 0-没生成,1-已生成，2-作废',
+  `created_at` int(14) unsigned NOT NULL DEFAULT '0' COMMENT '发货单生效日期',
+  `updated_at` int(14) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_receipt_id` (`receipt_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_obd_id` (`obd_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=155065 DEFAULT CHARSET=utf8 COMMENT='物美发货单头';
+
+
+CREATE TABLE `mall_sale_head` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `zone_id` varchar(16) NOT NULL DEFAULT '1000' COMMENT '区域id: 1000-北京,1001-天津, 1002-杭州',
+  `zone_name` varchar(32) NOT NULL DEFAULT '北京' COMMENT '区域名: 北京,天津,杭州',
+  `sale_id` bigint(20) unsigned NOT NULL COMMENT '销售单id 签收单/承运商承担返仓单/链商承担返仓单 待定',
+  `waybill_id` varchar(100) NOT NULL DEFAULT '0' COMMENT '签收单所属运单号/返仓单所属运单号',
+  `second_waybill_id` varchar(100) NOT NULL DEFAULT '0' COMMENT '售后返仓 二次运单号',
+  `order_id` bigint(20) unsigned NOT NULL COMMENT '订单号 签收单对应订单号/返仓单对应订单号，售后返仓写原订单',
+  `shipping_id` bigint(20) unsigned NOT NULL COMMENT '发货单号 签收单对应发货单/返仓单对应发货单号，售后返仓写发货单',
+  `afs_id` bigint(20) unsigned NOT NULL COMMENT '退货单号',
+  `it_amount` decimal(15,4) NOT NULL COMMENT '单据金额 所有商品原价*数量总和',
+  `final_amount` decimal(15,4) unsigned NOT NULL COMMENT '单据实收 MIS签收单应付',
+  `afs_amount` decimal(15,4) NOT NULL COMMENT '退货金额',
+  `date` int(14) unsigned NOT NULL DEFAULT '0' COMMENT '交易时间 MIS运单中的签收单送达时间/返仓单定损时间',
+  `day` varchar(16) NOT NULL COMMENT '数据同步时间，精确到天',
+  `coupon_amount` varchar(64) NOT NULL DEFAULT '0.0000' COMMENT '优惠金额 签收单收入-签收单实收-售后退货金额',
+  `pay_type` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '支付方式 1-支付宝APP，2-微信APP,3-现金,4-货到POS付款，5-拉卡拉,6-微信扫码,7-不需要支付,8-支付宝扫码,9-赊账',
+  `sale_type` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '单据类型 0-签收单，1-返仓单, 2-售后返仓单',
+  `user_type` tinyint(3) unsigned DEFAULT '1' COMMENT '用户类型：1-普通用户 ,2-KA用户, 3-承运商,4-链商',
+  `user_fin_code` varchar(16) NOT NULL DEFAULT '' COMMENT '客户财务编码 KA编码/收入编码/承运商编码',
+  `status` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '单据状态 0-未核对,1-已核对',
+  `gen_evidence` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '是否生成凭证 0-未完成,1-已完成,2-作废',
+  `fin_code` varchar(32) DEFAULT NULL COMMENT '承运商财务编码',
+  `created_at` int(14) unsigned NOT NULL DEFAULT '0',
+  `updated_at` int(14) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sale_id` (`sale_id`),
+  KEY `idx_afs_id` (`afs_id`),
+  KEY `idx_waybill_id` (`waybill_id`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=63723 DEFAULT CHARSET=utf8 COMMENT='销售头表';
+
+
+CREATE TABLE `mall_sale_detail` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `zone_id` varchar(32) NOT NULL DEFAULT '1000' COMMENT '区域id: 1000-北京,1001-天津, 1002-杭州',
+  `zone_name` varchar(32) NOT NULL DEFAULT '北京' COMMENT '区域名: 北京,天津,杭州',
+  `sale_id` bigint(20) unsigned NOT NULL COMMENT '销售id',
+  `product_code` varchar(32) DEFAULT '' COMMENT '物美编码',
+  `product_name` varchar(128) DEFAULT '' COMMENT '商品名称',
+  `qty` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '销售数量',
+  `real_qty` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '销售数量EA',
+  `price` decimal(15,4) NOT NULL COMMENT '原售价',
+  `average_price` decimal(15,4) NOT NULL COMMENT '移动平均价 取发货单日期价格or签收单日期价格',
+  `nt_price` decimal(15,4) NOT NULL COMMENT '未税进货价 ??',
+  `tax` tinyint(3) unsigned NOT NULL COMMENT '税率 17/13/11/0',
+  `type` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '商品模式 0-物美，1-寄售,2-代销',
+  `fin_code` varchar(32) NOT NULL COMMENT '商品所属供商账务编码',
+  `warehouse_id` varchar(64) NOT NULL DEFAULT '' COMMENT '仓库ID',
+  `day` varchar(16) NOT NULL COMMENT '数据同步时间，精确到天',
+  `created_at` int(14) unsigned NOT NULL DEFAULT '0',
+  `updated_at` int(14) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_sale_id` (`sale_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1475233 DEFAULT CHARSET=utf8 COMMENT='销售详情表';
+
+
+CREATE TABLE `mall_return_head` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `return_id` bigint(20) unsigned NOT NULL COMMENT '退货单ID  写oms 退货单号 待定',
+  `receipt_id` bigint(20) unsigned NOT NULL DEFAULT '0' COMMENT '原签收单号',
+  `second_receipt_id` bigint(20) unsigned NOT NULL DEFAULT '0' COMMENT '二次签收单号',
+  `order_id` bigint(20) NOT NULL COMMENT '来源订单id',
+  `to_order_id` bigint(20) NOT NULL DEFAULT '0' COMMENT '目标订单id',
+  `it_amount` decimal(15,4) NOT NULL COMMENT '退货含税总额',
+  `nt_amount` decimal(15,4) NOT NULL COMMENT '未税总额',
+  `status` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '单据状态 0-未核对,1-已核对',
+  `gen_evidence` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '是否生成凭证 0-未完成,1-已完成,2-作废',
+  `date` int(14) unsigned NOT NULL DEFAULT '0' COMMENT '退货日期 二次签收单签收时间',
+  `day` varchar(16) NOT NULL COMMENT '数据同步时间，精确到天',
+  `zone_id` varchar(16) NOT NULL DEFAULT '1000' COMMENT '区域id: 1000-北京,1001-天津, 1002-杭州',
+  `zone_name` varchar(32) NOT NULL DEFAULT '北京' COMMENT '区域名: 北京,天津,杭州',
+  `created_at` int(14) unsigned NOT NULL DEFAULT '0',
+  `updated_at` int(14) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_return_id` (`return_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_receipt_id` (`receipt_id`),
+  KEY `idx_second_receipt_id` (`second_receipt_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1202 DEFAULT CHARSET=utf8 COMMENT='销售退货单头';
+
+
+CREATE TABLE `mall_return_detail` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `zone_id` varchar(16) NOT NULL DEFAULT '1000' COMMENT '区域id: 1000-北京,1001-天津, 1002-杭州',
+  `zone_name` varchar(32) NOT NULL DEFAULT '北京' COMMENT '区域名: 北京,天津,杭州',
+  `return_id` bigint(20) unsigned NOT NULL COMMENT '退货单ID',
+  `product_code` varchar(32) DEFAULT '' COMMENT '物美编码',
+  `product_name` varchar(128) DEFAULT '' COMMENT '商品名称',
+  `tax` tinyint(3) unsigned NOT NULL COMMENT '税率 17/13/11/0',
+  `qty` int(10) unsigned NOT NULL COMMENT '退货数量',
+  `real_qty` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '销售数量EA',
+  `sale_price` decimal(15,4) NOT NULL COMMENT '商品原售价 退货单标记的价格',
+  `average_price` decimal(15,4) NOT NULL COMMENT '商品移动平均价 原签收单价格 成本价',
+  `type` tinyint(3) unsigned NOT NULL DEFAULT '0' COMMENT '商品模式 0-物美，1-寄售,2-代销',
+  `fin_code` varchar(32) NOT NULL COMMENT '商品所属供商账务编码',
+  `day` varchar(16) NOT NULL COMMENT '数据同步时间，精确到天',
+  `created_at` int(14) unsigned NOT NULL DEFAULT '0',
+  `updated_at` int(14) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_return_id` (`return_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=752 DEFAULT CHARSET=utf8 COMMENT='销售退货单详情';
+
+
+CREATE TABLE `fin_certificate_result` (
+  `zone_name` varchar(10) comment '地区',
+  `receipt_id` varchar(32) comment '签收单',
+  `tax_rate` char(5) comment '税率',
+  `doc_type` varchar(10) comment '凭证类型',
+  `dctype` varchar(10) comment '借贷标志',
+  `doc_number` varchar(10) comment '科目编码',
+  `dd` varchar(10) comment '部门编码',
+  `project` char(10) comment '项目大类',
+  `project_cate` char(10) comment '项目',
+  `money` decimal(16,2) comment '金额',
+  `text` varchar(67) comment '文本',
+  `pstng_date` varchar(16) comment '时间',
+  `customer` varchar(20)  comment '承运商编码',
+  `vendor` varchar(20)  comment '供应商编码',
+  `status` char(1) comment '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+drop table mds_fin_sale_detail;
+CREATE TABLE `mds_fin_sale_detail` (
+  `zone_id` varchar(16) COMMENT '区域id',
+  `zone_name` varchar(10) comment '地区',  
+  `order_id` bigint(32) COMMENT '订单号',
+  `sale_id` bigint(32)  COMMENT '销售单id',
+  `final_amount` decimal(15,4) COMMENT '单据实收',
+  `afs_amount` decimal(15,4) COMMENT '优惠金额',
+  `user_type` tinyint(3) COMMENT '用户类型：1-普通用户 ,2-KA用户, 3-承运商,4-链商',
+  `customer` varchar(32) COMMENT '承运商财务编码',
+  `product_code` varchar(32) COMMENT '物美编码',
+  `product_name` varchar(50)  COMMENT '商品名称',
+  `price` decimal(15,4) COMMENT '原售价',
+  `qty` int(10) COMMENT '销售数量',
+  `real_qty` int(10) COMMENT '销售数量EA',
+  `tax` tinyint(3) COMMENT '税率 17/13/11/0',
+  `average_price` decimal(15,4) COMMENT '移动平均价 取发货单日期价格or签收单日期价格',
+  `nt_price` decimal(15,4) COMMENT '未税进货价',
+  `type` tinyint(3) COMMENT '商品模式 0-物美，1-寄售,2-代销',
+  `vendor` varchar(32) COMMENT '商品所属供商账务编码',
+  `pstng_date` varchar(16) COMMENT '数据同步时间，精确到天',
+  KEY `idx_zone_id` (`zone_id`),
+  KEY `idx_user_type` (`user_type`),
+  KEY `idx_pstng_date` (`pstng_date`)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+drop table mds_fin_sale_detail;
+CREATE TABLE `mds_fin_return_detail` (
+  `zone_id` varchar(16) COMMENT '区域id',
+  `zone_name` varchar(10) comment '地区', 
+  `return_id` bigint(32) COMMENT '退货单ID',
+  `receipt_id` bigint(32) COMMENT '原签收单号',
+  `second_receipt_id` bigint(32) COMMENT '二次签收单号',
+  `it_amount` decimal(15,4) COMMENT '退货含税总额',
+  `nt_amount` decimal(15,4) COMMENT '未税总额',
+  `product_code` varchar(32) COMMENT '物美编码',
+  `product_name` varchar(50) COMMENT '商品名称',
+  `qty` int(10) COMMENT '退货数量',
+  `real_qty` int(10) COMMENT '销售数量EA',
+  `sale_price` decimal(15,4) COMMENT '商品原售价',
+  `average_price` decimal(15,4) COMMENT '商品移动平均价',
+  `tax` tinyint(3) COMMENT '税率 17/13/11/0',
+  `type` tinyint(3) COMMENT '商品模式 0-物美，1-寄售,2-代销',
+  `vendor` varchar(32) COMMENT '商品所属供商账务编码',
+  `pstng_date` varchar(16) COMMENT '时间',
+  KEY `idx_zone_id` (`zone_id`),
+  KEY `idx_pstng_date` (`pstng_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+drop table dim_fin_certificate_info_u8;
+CREATE TABLE `dim_fin_certificate_info_u8` (
+  `name` varchar(30) DEFAULT NULL COMMENT '地区',
+  `doc_type` varchar(10) DEFAULT NULL COMMENT '凭证类型',
+  `dctype` varchar(10) DEFAULT NULL COMMENT '借贷标志',
+  `gl_account` varchar(10) DEFAULT NULL COMMENT '科目编码',
+  `dd_name` varchar(30) DEFAULT NULL COMMENT '部门名称',
+  `dd` varchar(10) DEFAULT NULL COMMENT '部门号',
+  `customer` varchar(10) DEFAULT NULL COMMENT '承运商编码',
+  `project` varchar(10) DEFAULT NULL COMMENT '项目大类',
+  `project_cate` varchar(10) DEFAULT NULL COMMENT '项目',
+  `pn` int(11) DEFAULT NULL COMMENT '正负标志',
+  `alloc_nmbr` varchar(10) DEFAULT NULL COMMENT '',
+  `tax_rate` varchar(10) DEFAULT NULL COMMENT '税率',
+  `amtdoccur` varchar(50) DEFAULT NULL COMMENT '',
+  `item_text` varchar(50) DEFAULT NULL COMMENT '文本信息',
+  `system` varchar(20) DEFAULT NULL COMMENT '系统',
+  `area` varchar(20) DEFAULT NULL COMMENT '地区',
+  `flag` varchar(20) DEFAULT NULL COMMENT '凭证标示'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `fin_certificate_result` (
+  `zone_name` varchar(10) comment '地区',
+  `receipt_id` varchar(32) comment '签收单',
+  `tax_rate` char(5) comment '税率',
+  `doc_type` varchar(10) comment '凭证类型',
+  `dctype` varchar(10) comment '借贷标志',
+  `doc_number` varchar(10) comment '科目编码',
+  `dd` varchar(10) comment '部门编码',
+  `project` char(10) comment '项目大类',
+  `project_cate` char(10) comment '项目',
+  `money` decimal(16,2) comment '金额',
+  `text` varchar(67) comment '文本',
+  `pstng_date` varchar(16) comment '时间',
+  `customer` varchar(20)  comment '承运商编码',
+  `vendor` varchar(20)  comment '供应商编码',
+  `status` char(1) comment '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_re_detail` (
+  `zone_name` varchar(10) COMMENT '地区',
+  `receipt_id` varchar(32) COMMENT '签收单号',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '文本信息',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `vendor` varchar(20) comment '供应商编码'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_re` (
+  `zone_name` varchar(10) comment '地区',
+  `receipt_id` varchar(32)  comment '签收单',
+  `tax_rate` char(5) comment '税率',
+  `doc_type` varchar(10) comment '凭证类型',
+  `dctype` varchar(10) comment '借贷标志',
+  `doc_number` varchar(10) comment '科目编码',
+  `dd` varchar(10) comment '部门编码',
+  `project` char(10) comment '项目大类',
+  `project_cate` char(10) comment '项目',
+  `money` decimal(16,2) comment '金额',
+  `text` varchar(67) comment '文本',
+  `pstng_date` varchar(16) comment '时间',
+  `customer` varchar(20) comment '承运商编码',
+  `vendor` varchar(20) comment '供应商编码',
+  `status` char(1) comment '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_rv` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '单据实收',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_rv_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `all_money` decimal(16,2) COMMENT '单据金额',
+  `money` decimal(16,2) COMMENT '单据实收金额',
+  `dx` decimal(16,2) COMMENT '代销金额',
+  KEY `idx_zone_name` (`zone_name`),
+  KEY `idx_receipt_id` (`receipt_id`),
+  KEY `idx_pstng_date` (`pstng_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_rv_detail_1` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '单据实收',
+  `text` varchar(67) COMMENT '文本',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_rv_detail_2` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '项目',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_rv_detail_3` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(20) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '项目',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_rv_detail_4` (
+  `zone_name` varchar(12) COMMENT '区域',
+  `receipt_id` varchar(20) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '项目',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `flag` varchar(20) COMMENT '凭证标示',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_rv_detail_5` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `flag` varchar(20) COMMENT '凭证标示',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `fin_certificate_rv_detail_7` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_zv2` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_zv2_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_re_fc` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_re_fc_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+
+
+
+
+CREATE TABLE `fin_certificate_rv_fc` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_rv_fc_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE `fin_certificate_zv2_cy` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_zv2_cy_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+
+CREATE TABLE `fin_certificate_ka_rv` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '单据实收',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_rv_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `all_money` decimal(16,2) COMMENT '单据金额',
+  `money` decimal(16,2) COMMENT '单据实收金额',
+  `dx` decimal(16,2) COMMENT '代销金额',
+  KEY `idx_zone_name` (`zone_name`),
+  KEY `idx_receipt_id` (`receipt_id`),
+  KEY `idx_pstng_date` (`pstng_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_rv_detail_1` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '单据实收',
+  `text` varchar(67) COMMENT '文本',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_rv_detail_2` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '项目',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_rv_detail_3` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(20) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '项目',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_rv_detail_4` (
+  `zone_name` varchar(12) COMMENT '区域',
+  `receipt_id` varchar(20) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '项目',
+  `text` varchar(67) COMMENT '文本',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `flag` varchar(20) COMMENT '凭证标示',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_rv_detail_5` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `flag` varchar(20) COMMENT '凭证标示',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `fin_certificate_ka_rv_detail_7` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_zv2` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `project` varchar(10) COMMENT '项目大类',
+  `project_cate` varchar(10) COMMENT '项目',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `status` varchar(1) COMMENT '生成凭证状态',
+  `created_at` int(11) comment '创建时间',
+  `updated_at` int(11) comment '修改时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE `fin_certificate_ka_zv2_detail` (
+  `zone_name` varchar(10) COMMENT '区域',
+  `receipt_id` varchar(32) COMMENT '签收单',
+  `tax_rate` char(5) COMMENT '税率',
+  `doc_type` varchar(10) COMMENT '凭证类型',
+  `dctype` varchar(10) COMMENT '借贷标志',
+  `doc_number` varchar(10) COMMENT '科目编码',
+  `customer` varchar(20) COMMENT '承运商编码',
+  `vendor` varchar(20) COMMENT '供应商编码',
+  `dd` varchar(10) COMMENT '部门号',
+  `money` decimal(16,2) COMMENT '金额',
+  `text` varchar(67) COMMENT '项目',
+  `pstng_date` varchar(16) COMMENT '时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,0 +1,1661 @@
+  DROP PROCEDURE IF EXISTS fin_voucher;  
+  delimiter //
+  create procedure fin_voucher 
+  (IN voucher_type varchar(5), /*凭证类型*/
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10) /*结束日期*/
+   )
+  begin 
+  set @voucher_type = voucher_type;
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  end if;
+
+  if (@voucher_type = '') then 
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_rv(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_zv2(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_re_fc(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_rv_fc(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_zv2_cy(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_zv2_ls(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_zv2_ka_rv(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_zv2_ka_zv2(@pstng_date_start,@pstng_date_end);
+      call fin_voucher_zv2_(@pstng_date_start,@pstng_date_end);
+  elseif (@voucher_type = 'RE') then
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+  elseif (@voucher_type = 'RV') then
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+  elseif (@voucher_type = 'ZV2') then
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+  elseif (@voucher_type = 'RE_FC') then
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+  elseif (@voucher_type = 'RV_FC') then
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+  elseif (@voucher_type = 'ZV2_CY') then
+      call fin_voucher_re(@pstng_date_start,@pstng_date_end);
+  else 
+      select '凭证参数传入有误';
+
+end;
+ //
+
+###RERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERE
+DROP PROCEDURE IF EXISTS fin_voucher_re;  
+  delimiter //
+  create procedure fin_voucher_re 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out re_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_re_detail;  
+  truncate table fin_certificate_re;
+  
+
+  set @strsql = 'delete from fin_certificate_re_result where doc_type = ''RE'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_re_detail
+      select zone_name,receipt_id,'''' as tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,f.dd,a.money,concat(pstng_date,'' '',f.item_text) text,pstng_date,a.vendor
+        from 
+      (
+      select zone_name,receipt_id,day as pstng_date,nt_amount as money,''RE_WUMART'' flag,'''' as vendor
+        from wm_receipt_head
+       where day >= @pstng_date_start                       
+         and day <= @pstng_date_end
+      union all
+      select zone_name,receipt_id,day as pstng_date,it_amount - nt_amount as money,''RE_TAX_WUMART'' flag,'''' as vendor
+        from wm_receipt_head
+       where day >= @pstng_date_start                       
+         and day <= @pstng_date_end
+      union all
+      select zone_name,receipt_id,day as pstng_date,it_amount as money,''RE_GY'' flag,
+             case when zone_id = ''1000'' then ''01010001'' 
+                  when zone_id = ''1001'' then ''02010001''
+                  when zone_id = ''1002'' then ''03010001''
+                  end 
+             as vendor
+        from wm_receipt_head
+       where day >= @pstng_date_start                       
+         and day <= @pstng_date_end
+      ) as a 
+      left join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+      insert into fin_certificate_re 
+      select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,dd,'''' as project,'''' as project_cate,money,text,pstng_date,'''' as customer ,vendor,''1'' status,
+          unix_timestamp() created_at,unix_timestamp() updated_at
+      from (
+          select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,f.dd,money,pstng_date text,pstng_date,'''' as vendor
+          from (
+              SELECT zone_name,receipt_id,pstng_date,
+                  case when sub_money>0 then ''RE_D'' else ''RE_C'' end flag,
+                  abs(sub_money) money
+              from (
+                  select zone_name,receipt_id,pstng_date,
+                      round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                  from  fin_certificate_re_detail
+                  group by zone_name,receipt_id,pstng_date
+              ) a
+              where round(sub_money,2)<>0
+          ) a
+          join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+          union all
+          select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,dd,money,text,pstng_date,vendor
+          from fin_certificate_re_detail
+      ) b ';
+      
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_re_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_re
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+  select FOUND_ROWS() into re_num; 
+end
+//
+
+#call fin_voucher_re('2017-05-01','2017-05-10',@re_num);
+
+
+###RVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRVRV
+DROP PROCEDURE IF EXISTS fin_voucher_rv;  
+  delimiter //
+  create procedure fin_voucher_rv 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out rv_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_rv_detail;
+  truncate table fin_certificate_rv_detail_1;
+  truncate table fin_certificate_rv_detail_2;
+  truncate table fin_certificate_rv_detail_3;
+  truncate table fin_certificate_rv_detail_4;
+  truncate table fin_certificate_rv_detail_5;
+  truncate table fin_certificate_rv_detail_7; 
+
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''RV'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_rv where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_rv_detail_1
+    select a.zone_name,a.receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+           case when f.gl_account = ''11220202'' then a.fin_code else '''' end as customer,'''' as vendor,f.dd,
+           a.money,
+           concat_ws('' '',a.pstng_date,f.item_text) text,
+           f.project,
+           f.project_cate,
+           a.pstng_date
+      from (
+            select zone_name,sale_id as receipt_id,order_id,final_amount as money,day as pstng_date,fin_code,
+                   case when pay_type=3 then ''现金''
+                        when pay_type=1 then ''支付宝''
+                        when pay_type=5 then ''拉卡拉''
+                        when pay_type=6 then ''微信-扫码''
+                        when pay_type=2 then ''微信-APP''
+                        when pay_type=8 then ''支付宝-扫码''
+                        when pay_type=9 then ''赊销''
+                        when pay_type=0 then ''现金''
+                        end as type
+              from mall_sale_head
+             where day >= @pstng_date_start                       
+               and day <= @pstng_date_end
+               and user_type = 1
+            ) as a
+            join dim_fin_certificate_info_u8 f on f.flag=TYPE and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_rv_detail_2
+    select a.zone_name,receipt_id,a.tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,'''' as customer,'''' as vendor,f.dd,f.project,f.project_cate,
+           money*pn as money,concat_ws('' '',pstng_date,item_text) text,pstng_date
+    FROM (
+    select zone_name,sale_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(price*qty/(1+tax/100)),2) money,
+           concat(''NO'',case when type = 0 then ''WUMART'' 
+                              when type = 1 then ''JISHOU'' 
+                              end,''_'',tax) flag
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+       and user_type = 1
+     group by zone_name,sale_id,pstng_date,tax,type 
+    union all
+    select zone_name,sale_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(price*qty*(tax/100)/(1+tax/100)),2) money,
+           concat(case when type = 0 then ''WUMART'' 
+                       when type = 1 then ''JISHOU'' 
+                       end,''_'',tax) flag
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+       and user_type = 1
+     group by zone_name,sale_id,pstng_date,tax,type 
+    union all
+    select zone_name,second_receipt_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(sale_price*qty/(1+tax/100)),2) money,
+           concat(''SH_NO'',case when type = 0 then ''WUMART'' 
+                                 when type = 1 then ''JISHOU'' 
+                                 end,''_'',tax) flag
+      from 
+    (
+    select zone_id,
+            zone_name,
+            return_id,second_receipt_id,product_code,qty,pstng_date,sale_price,tax,type,vendor
+       from mds_fin_return_detail
+      where type in (0,1)
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
+    ) as a
+    group by zone_name,second_receipt_id,pstng_date,tax,type
+    union all
+    select zone_name,second_receipt_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(sale_price*qty*(tax/100)/(1+tax/100)),2) money,
+           concat(''SH_'',case when type = 0 then ''WUMART'' 
+                               when type = 1 then ''JISHOU'' 
+                               end,''_'',tax) flag
+      from  
+    (select zone_id,zone_name,return_id,second_receipt_id,product_code,qty,sale_price,tax,type,pstng_date
+       from mds_fin_return_detail
+      where type in (0,1)
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
+    ) as b
+    group by zone_name,second_receipt_id,pstng_date,tax,type
+    ) a join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_rv_detail_3
+    select a.zone_name,a.receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+           a.vendor as customer,'''' as vendor,f.dd,f.project,f.project_cate,a.money,concat_ws('' '',a.pstng_date,item_text) text,a.pstng_date
+    from
+    (
+    select a.zone_name,a.receipt_id,a.pstng_date,round(sum(money),2) money,flag,vendor 
+      from 
+    (
+    select zone_name,sale_id as receipt_id,pstng_date,
+           price*qty money,
+           case when type = 2 then ''DAIXIAO''
+                when type = 2 and vendor = ''01020007'' then ''SH_BSDS''
+                end flag,
+           vendor
+      from mds_fin_sale_detail
+     where type = 2
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+       and user_type = 1
+    ) as a 
+     group by zone_name,receipt_id,pstng_date,flag,vendor
+    union all
+    select zone_name,receipt_id,pstng_date,round(sum(money),2) as money,flag,vendor  
+      from 
+    (
+    select zone_name,second_receipt_id as receipt_id,pstng_date,
+           sale_price*qty money,
+           concat(''SH'',case when type = 2 then ''DAIXIAO''
+                              when type = 2 and vendor = ''01020007'' then ''BSDS''
+                          end) flag,
+           vendor
+       from mds_fin_return_detail
+      where type = 2
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
+    ) as a 
+    group by zone_name,receipt_id,pstng_date,vendor,flag
+    ) as a 
+    join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+  
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+ set @strsql = '
+    insert into fin_certificate_rv_detail
+    select zone_name,sale_id as receipt_id,pstng_date,
+           sum(price*qty) all_money,max(final_amount) money,
+           sum(case when type = 2 then price*qty else 0 end) dx
+      from mds_fin_sale_detail
+     where user_type = 1
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,sale_id,pstng_date ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+ set @strsql = '
+    insert into fin_certificate_rv_detail_4 
+    select 
+            a.zone_name,
+            a.receipt_id,
+            a.tax_rate,
+            f.doc_type,
+            f.dctype,
+            f.gl_account doc_number,
+            f.dd,
+            f.project,
+            f.project_cate,
+            (round((s_money*(all_money-money)/(all_money))/(1+a.tax_rate/100) ,2))*f.pn money,
+            concat_ws('' '',a.pstng_date,item_text) text,
+            a.pstng_date,
+            a.flag,
+            '''' as customer,
+            '''' as vendor,
+            ''1'' status
+    from (
+    select zone_name,pstng_date,sale_id as receipt_id,
+           case when type = 0 or type = 1 then tax else 0 end tax_rate,
+           concat(''NO'',
+                  case when type = 0 then ''WUMART'' 
+                       when type = 1 then ''JISHOU'' 
+                       when type = 2 then ''DAIXIAO''
+                       end,
+                  ''_'',
+                  case when type = 0 or type = 1 then tax else 0 end,''_ZK'') flag,
+           sum(price*qty) s_money
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and user_type = 1
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,sale_id,pstng_date,type,tax 
+    ) as a
+    join 
+    (select receipt_id,pstng_date,all_money,money
+       from fin_certificate_rv_detail
+    ) as n 
+    on a.receipt_id=n.receipt_id and a.pstng_date = n.pstng_date
+    join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  select @strsql;
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_rv_detail_5 
+    select a.zone_name,
+            a.receipt_id,
+            a.tax_rate,
+            f.doc_type,
+            f.dctype,
+            f.gl_account doc_number,
+            f.dd,
+            f.project,
+            f.project_cate,
+            (round( (s_money*(all_money-money)*(a.tax_rate/100)/(all_money))/(1+a.tax_rate/100) ,2))*f.pn money,
+            concat_ws('' '',a.pstng_date,item_text) text,
+            a.pstng_date,
+            a.flag,
+            '''' as customer,
+            '''' as vendor,
+            ''1'' status
+    from (
+    select zone_name,pstng_date,sale_id as receipt_id,
+           case when type = 0 or type = 1 then tax else 0 end tax_rate,
+           concat(case when type = 0 then ''WUMART'' 
+                       when type = 1 then ''JISHOU'' 
+                       when type = 2 then ''DAIXIAO''
+                       end,
+                  ''_'',
+                  case when type = 0 or type = 1 then tax else 0 end,''_ZK'') flag,
+           sum(price*qty) s_money
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and user_type = 1
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,sale_id,pstng_date,type,tax 
+    ) as a
+    join 
+    (select receipt_id,pstng_date,all_money,money
+       from fin_certificate_rv_detail
+    ) as n 
+    on a.receipt_id=n.receipt_id and a.pstng_date = n.pstng_date
+    join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  select @strsql;
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_rv_detail_7 
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_rv_detail_1
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_rv_detail_2
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_rv_detail_3
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_rv_detail_4
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_rv_detail_5';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_rv
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,money,text,pstng_date,customer,vendor,''1'' status,
+        unix_timestamp() created_at,unix_timestamp() updated_at
+    from (
+        select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,f.customer as customer,'''' as vendor,f.dd,
+               case when f.gl_account = ''6001010101'' or f.gl_account = ''6001010203'' then ''0101'' else '''' end as project,
+               case when f.gl_account = ''6001010101'' or f.gl_account = ''6001010203'' then ''01'' else '''' end as project_cate,
+               money,concat_ws('' '',pstng_date,f.item_text) text,pstng_date
+        from (
+            SELECT zone_name,receipt_id,pstng_date,
+                ''RV_D'' flag,
+                sub_money money
+
+            from (
+                select zone_name,receipt_id,pstng_date,
+                    round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                from fin_certificate_rv_detail_7
+                group by zone_name,receipt_id,pstng_date
+            ) a
+            where round(sub_money,2)<>0
+        ) a
+        join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+        union all
+        select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+        from fin_certificate_rv_detail_7
+    ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_rv
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+
+  select FOUND_ROWS() into rv_num; 
+end
+//
+
+#    call fin_voucher_rv('2017-07-01','2017-07-10',@rv);
+
+
+#ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2
+DROP PROCEDURE IF EXISTS fin_voucher_zv2;  
+  delimiter //
+  create procedure fin_voucher_zv2 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out zv2_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_zv2_detail;
+  
+  set @strsql = 'delete from fin_certificate_zv2 where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''ZV2'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+      insert into fin_certificate_zv2_detail
+      select a.zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+             a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws('' '',pstng_date,item_text) as text,pstng_date
+      from (
+      select zone_name,receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             flag
+      from 
+      (
+      select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+             concat(''ZV2_'',case when type = 0 then ''WUMART''
+                                  when type = 1 then ''JISHOU'' end) as flag
+        from mds_fin_sale_detail
+       where type in (0,1)
+         and pstng_date >= @pstng_date_start
+         and pstng_date <= @pstng_date_end
+         and user_type = 1
+      ) as a  
+      group by zone_name,receipt_id,pstng_date,flag
+      union all
+      select zone_name,receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             flag
+      from 
+      (
+      select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+             concat(''ZV2_KC_'',case when type = 0 then ''WUMART'' 
+                                     when type = 1 then ''JISHOU'' end) as flag
+        from mds_fin_sale_detail
+       where type in (0,1)
+         and pstng_date >= @pstng_date_start
+         and pstng_date <= @pstng_date_end
+         and user_type = 1
+      ) as a  
+      group by zone_name,receipt_id,pstng_date,flag
+      union all
+      select zone_name,second_receipt_id as receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             concat(''ZV2_SH_'',case when type = 0 then ''WUMART'' 
+                                     when type = 1 then ''JISHOU'' end) as flag
+        from 
+      (select zone_id,zone_name,return_id,second_receipt_id,average_price*qty money,tax as tax_rate,type,pstng_date
+         from mds_fin_return_detail
+        where type in (0,1)
+          and pstng_date >= @pstng_date_start
+          and pstng_date <= @pstng_date_end
+      ) as b
+      group by zone_name,second_receipt_id,pstng_date,type
+      union all
+      select zone_name,second_receipt_id as receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             concat(''ZV2_SH_KC_'',case when type = 0 then ''WUMART'' 
+                                        when type = 1 then ''JISHOU'' end) as flag
+        from 
+      (select zone_id,zone_name,return_id,second_receipt_id,average_price*qty money,tax as tax_rate,type,pstng_date
+         from mds_fin_return_detail
+        where type in (0,1)
+          and pstng_date >= @pstng_date_start
+          and pstng_date <= @pstng_date_end
+      ) as b
+      group by zone_name,second_receipt_id,pstng_date,type
+      ) as a
+      join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+ 
+  set @strsql = '
+        insert into fin_certificate_zv2
+        select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,dd,'''' as project,'''' as project_cate,money,text,pstng_date,customer,vendor,''1'' status,
+            unix_timestamp() created_at,unix_timestamp() updated_at
+        from (
+            select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,
+                   '''' as customer,'''' as vendor,f.dd,money,concat_ws('' '',pstng_date,item_text) text,pstng_date
+            from (
+                SELECT zone_name,receipt_id,pstng_date,
+                    case when sub_money>0 then ''ZV2_D'' else ''ZV2_C'' end flag,
+                    abs(sub_money) money
+                from (
+                    select zone_name,receipt_id,pstng_date,
+                        round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                    from fin_certificate_zv2_detail
+                    group by zone_name,receipt_id,pstng_date
+                ) a
+                where round(sub_money,2)<>0
+            ) a
+            join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+            union all
+            select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,money,text,pstng_date
+            from fin_certificate_zv2_detail
+        ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+ 
+ 
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_zv2
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+  
+  select FOUND_ROWS() into zv2_num;
+end
+//
+
+
+#   call fin_voucher_zv2('2017-07-01','2017-07-10',@zv2);
+
+#RE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_FRE_F
+
+DROP PROCEDURE IF EXISTS fin_voucher_re_fc;  
+  delimiter //
+  create procedure fin_voucher_re_fc 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out re_fc_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  #truncate table fin_certificate_re_fc_detail;
+
+  set @strsql = 'delete from fin_certificate_re_fc where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''RE_F'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+        insert into fin_certificate_re_fc_detail
+        select zone_name,order_id as receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,'''' customer,vendor,f.dd,money,concat_ws('' '',pstng_date,item_text) text,pstng_date
+        from (
+        select zone_name,order_id,day as pstng_date,nt_amount as money,''FC_RE_WUMART'' as flag,'''' vendor
+          from wm_return_head
+         where day >= @pstng_date_start
+           and day <= @pstng_date_end
+        union all
+        select zone_name,order_id,day as pstng_date,it_amount - nt_amount as money,''FC_RE_TAX_WUMART'' as flag,'''' vendor
+          from wm_return_head
+         where day >= @pstng_date_start
+           and day <= @pstng_date_end
+        union all
+        select zone_name,order_id,day as pstng_date,it_amount as money,''FC_RE_GY'' as flag,
+               case when zone_id = ''1000'' then ''01010001''
+                    when zone_id = ''1001'' then ''02010001''
+                    when zone_id = ''1002'' then ''03010001''
+                    end 
+               as vendor
+          from wm_return_head
+         where day >= @pstng_date_start
+           and day <= @pstng_date_end
+        ) as a
+        join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+        insert into fin_certificate_re_fc
+        select zone_name,receipt_id,tax_rate,''RE_F'' doc_type,dctype,doc_number,dd,'''' as project,'''' as project_cate,money,text,pstng_date,customer,vendor,''1'' status,
+            unix_timestamp() created_at,unix_timestamp() updated_at
+        from (
+            select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,'''' as customer ,'''' as vendor,f.dd,money,concat_ws('' '',pstng_date,''物美退货'') text,pstng_date
+            from (
+                SELECT zone_name,receipt_id,pstng_date,
+                    case when sub_money>0 then ''FC_RE_D'' else ''FC_RE_C'' end flag,
+                    abs(sub_money) money
+                from (
+                    select zone_name,receipt_id,pstng_date,
+                        round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                    from fin_certificate_re_fc_detail
+                    group by zone_name,receipt_id,pstng_date
+                ) a
+                where round(sub_money,2)<>0
+            ) a
+            join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+            union all
+            select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,money,text,pstng_date
+            from fin_certificate_re_fc_detail
+        ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_re_fc
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+select FOUND_ROWS() into re_fc_num;
+end
+//
+
+
+#RV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_FRV_F
+DROP PROCEDURE IF EXISTS fin_voucher_rv_fc;  
+  delimiter //
+  create procedure fin_voucher_rv_fc 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out rv_fc_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_rv_fc_detail;
+
+  set @strsql = 'delete from fin_certificate_rv_fc where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''RV_F'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+        insert into fin_certificate_rv_fc_detail 
+        select a.zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,a.customer,'''' vendor,
+               f.dd,f.project,f.project_cate,money,concat_ws('' '',pstng_date,item_text)
+        text,pstng_date
+        from (
+        select zone_name,receipt_id,round(sum(price*qty/(1+tax_rate/100)),2) money,pstng_date,flag,'''' as customer
+          from 
+        (
+        select zone_name,sale_id as receipt_id,price,qty,tax as tax_rate,pstng_date ,
+               concat(''FC_NO'',case when type = 0 then ''WUMART''
+                                   when type = 1 then ''JISHOU'' 
+                                   end,
+                      ''_'',tax) as flag,
+               '''' customer
+          from mds_fin_sale_detail
+         where type in (0,1)
+           and user_type = 3
+           and pstng_date >= @pstng_date_start
+           and pstng_date <= @pstng_date_end
+        ) as a
+        group by zone_name,receipt_id,pstng_date,flag
+        union all
+        select zone_name,sale_id as receipt_id,round(sum(price*qty/(1+tax/100)),2) money,pstng_date,
+               ''FC_DAIXIAO'' flag,'''' as customer
+          from mds_fin_sale_detail
+         where type = 2
+           and user_type = 3
+           and pstng_date >= @pstng_date_start
+           and pstng_date <= @pstng_date_end
+        group by zone_name,sale_id,pstng_date
+        union all
+        select zone_name,receipt_id,round(sum(price*qty*(tax_rate/100)/(1+tax_rate/100)),2) money,
+               pstng_date,flag,'''' as customer
+          from 
+        (
+        select zone_name,sale_id as receipt_id,price,qty,tax as tax_rate,pstng_date,
+               concat(''FC_'',case when type = 0 then ''WUMART'' 
+                                 when type = 1 then ''JISHOU'' 
+                                 end,
+                      ''_'',tax) as flag
+          from mds_fin_sale_detail
+         where type in (0,1)
+           and user_type = 3
+           and pstng_date >= @pstng_date_start
+           and pstng_date <= @pstng_date_end
+        ) as a
+        group by zone_name,receipt_id,pstng_date,flag   
+        union all
+        select zone_name,sale_id as receipt_id,final_amount money,day as pstng_date,''FC_RV_CY'' flag,
+               fin_code as customer
+          from mall_sale_head
+         where day >= @pstng_date_start
+           and day <= @pstng_date_end
+           and user_type = 3
+        ) as a
+        join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+        insert into fin_certificate_rv_fc
+        select zone_name,receipt_id,tax_rate, doc_type,dctype,doc_number,dd,money,text,pstng_date,customer,
+               vendor,project,project_cate,''1'' status,unix_timestamp() created_at,unix_timestamp() updated_at
+        from (
+            select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,
+                   '''' as customer,'''' vendor,f.dd,'''' as project,'''' as project_cate,money,
+                   concat_ws('' '',pstng_date,item_text) text,pstng_date
+            from (
+                SELECT zone_name,receipt_id,pstng_date,
+                       case when sub_money>0 and zone_name = ''北京'' then ''FC_NOWUMART_17'' 
+                            when sub_money>0 and zone_name = ''天津'' then ''FC_NOWUMART_17'' 
+                            when sub_money>0 and zone_name = ''杭州'' then ''FC_NOJISHOU_17''
+                       else ''FC_RV_CY'' 
+                       end flag,
+                       abs(sub_money) money
+                from (
+                    select zone_name,receipt_id,pstng_date,
+                        round(round(sum(case when dctype=''C'' then money else 0 end),2) - abs(round(sum(case when dctype=''D'' then money else 0 end),2)),2) sub_money
+                    from fin_certificate_rv_fc_detail
+                    group by zone_name,receipt_id,pstng_date
+                ) a
+                where round(sub_money,2)<>0
+            ) a
+            join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+            union all
+            select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,abs(money) money,text,pstng_date
+            from fin_certificate_rv_fc_detail
+        ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_rv_fc
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+select FOUND_ROWS() into rv_fc_num;
+
+end
+//
+
+#ZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CYZV2_CY
+DROP PROCEDURE IF EXISTS fin_voucher_zv2_cy;  
+  delimiter //
+  create procedure fin_voucher_zv2_cy 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out zv2_cy_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_rv_fc_detail;
+
+
+  set @strsql = 'delete from fin_certificate_zv2_cy where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''ZV2_CY'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+set @strsql = '
+      insert into fin_certificate_zv2_cy_detail
+      select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+             '''' customer,'''' as vendor,f.dd,money,concat_ws('' '',pstng_date,item_text) text,
+             pstng_date
+      from (
+      select zone_name,receipt_id,round(sum(price*qty/(1+tax_rate/100)),2) money,pstng_date,flag
+        from 
+      (
+      select zone_name,sale_id as receipt_id,price,qty,tax as tax_rate,pstng_date,
+             concat(''FC_ZV2_'',case when type = 0 then ''WUMART'' 
+                                   when type = 1 then ''JISHOU'' 
+                                   end) as flag
+        from mds_fin_sale_detail
+       where type in (0,1)
+         and user_type = 3
+         and pstng_date >= @pstng_date_start
+         and pstng_date <= @pstng_date_end
+      ) as a
+      group by zone_name,receipt_id,pstng_date,flag
+      union all
+      select zone_name,receipt_id,round(sum(price*qty/(1+tax_rate/100)),2) money,pstng_date,flag
+        from 
+      (
+      select zone_name,sale_id as receipt_id,price,qty,tax as tax_rate,pstng_date,
+             concat(''FC_ZV2_KC_'',case when type = 0 then ''WUMART'' 
+                                        when type = 1 then ''JISHOU'' 
+                                        end) as flag
+        from mds_fin_sale_detail
+       where type in (0,1)
+         and user_type = 3
+         and pstng_date >= @pstng_date_start
+         and pstng_date <= @pstng_date_end
+      ) as a
+      group by zone_name,receipt_id,pstng_date,flag
+      ) a
+      join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+set @strsql = '
+      insert into fin_certificate_zv2_cy 
+      select zone_name,receipt_id,tax_rate, doc_type,dctype,doc_number,dd,'''' as project,
+             '''' as project_cate, money,text,pstng_date,customer,
+             vendor,''1'' status,unix_timestamp() created_at,unix_timestamp() updated_at
+      from (
+          select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,
+                 '''' customer,'''' as vendor,f.dd,money,concat_ws('' '',pstng_date,item_text) text,pstng_date
+          from (
+              SELECT zone_name,receipt_id,pstng_date,
+                  case when sub_money>0 then ''FC_ZV2_D'' else ''FC_ZV2_C'' end flag,
+                  abs(sub_money) money
+              from (
+                  select zone_name,receipt_id,pstng_date,
+                      round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                  from fin_certificate_zv2_cy_detail
+                  group by zone_name,receipt_id,pstng_date
+              ) a
+              where round(sub_money,2)<>0
+          ) a
+          join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+          union all
+          select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,money,text,pstng_date
+          from fin_certificate_zv2_cy_detail
+      ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_zv2_cy
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+select FOUND_ROWS() into zv2_cy_num;
+
+end
+//
+
+#  call fin_voucher_zv2_cy ('2017-07-01','2017-07-10',@zv2_cy);
+
+#KA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RV
+DROP PROCEDURE IF EXISTS fin_voucher_ka_rv;  
+  delimiter //
+  create procedure fin_voucher_ka_rv 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out ka_rv_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_ka_rv_detail;
+  truncate table fin_certificate_ka_rv_detail_1;
+  truncate table fin_certificate_ka_rv_detail_2;
+  truncate table fin_certificate_ka_rv_detail_3;
+  truncate table fin_certificate_ka_rv_detail_4;
+  truncate table fin_certificate_ka_rv_detail_5;
+  truncate table fin_certificate_ka_rv_detail_7; 
+
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''KA_RV'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_ka_rv where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_ka_rv_detail_1
+    select a.zone_name,a.receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+           case when f.gl_account = ''112203'' then a.fin_code else '''' end as customer,'''' as vendor,f.dd,
+           a.money,
+           concat_ws('' '',a.pstng_date,f.item_text) text,
+           f.project,
+           f.project_cate,
+           a.pstng_date
+      from (
+            select zone_name,sale_id as receipt_id,order_id,final_amount as money,day as pstng_date,fin_code,
+                   case when pay_type=3 then ''现金''
+                        when pay_type=1 then ''支付宝''
+                        when pay_type=5 then ''拉卡拉''
+                        when pay_type=6 then ''微信-扫码''
+                        when pay_type=2 then ''微信-APP''
+                        when pay_type=8 then ''支付宝-扫码''
+                        when pay_type=9 then ''赊销''
+                        when pay_type=0 then ''现金''
+                        end as type
+              from mall_sale_head
+             where day >= @pstng_date_start                       
+               and day <= @pstng_date_end
+               and user_type = 3
+            ) as a
+            join dim_fin_certificate_info_u8 f on f.flag=TYPE and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_ka_rv_detail_2
+    select a.zone_name,receipt_id,a.tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,'''' as customer,'''' as vendor,f.dd,f.project,f.project_cate,
+           money*pn as money,concat_ws('' '',pstng_date,item_text) text,pstng_date
+    FROM (
+    select zone_name,sale_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(price*qty/(1+tax/100)),2) money,
+           concat(''NO'',case when type = 0 then ''WUMART'' 
+                              when type = 1 then ''JISHOU'' 
+                              end,''_'',tax) flag
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+       and user_type = 3
+     group by zone_name,sale_id,pstng_date,tax,type 
+    union all
+    select zone_name,sale_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(price*qty*(tax/100)/(1+tax/100)),2) money,
+           concat(case when type = 0 then ''WUMART'' 
+                       when type = 1 then ''JISHOU'' 
+                       end,''_'',tax) flag
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+       and user_type = 3
+     group by zone_name,sale_id,pstng_date,tax,type 
+    union all
+    select zone_name,second_receipt_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(sale_price*qty/(1+tax/100)),2) money,
+           concat(''SH_NO'',case when type = 0 then ''WUMART'' 
+                                 when type = 1 then ''JISHOU'' 
+                                 end,''_'',tax) flag
+      from 
+    (
+    select zone_id,
+            zone_name,
+            return_id,second_receipt_id,product_code,qty,pstng_date,sale_price,tax,type,vendor
+       from mds_fin_return_detail
+      where type in (0,1)
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
+    ) as a
+    group by zone_name,second_receipt_id,pstng_date,tax,type
+    union all
+    select zone_name,second_receipt_id as receipt_id,pstng_date,tax as tax_rate,
+           round(sum(sale_price*qty*(tax/100)/(1+tax/100)),2) money,
+           concat(''SH_'',case when type = 0 then ''WUMART'' 
+                               when type = 1 then ''JISHOU'' 
+                               end,''_'',tax) flag
+      from  
+    (select zone_id,zone_name,return_id,second_receipt_id,product_code,qty,sale_price,tax,type,pstng_date
+       from mds_fin_return_detail
+      where type in (0,1)
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
+    ) as b
+    group by zone_name,second_receipt_id,pstng_date,tax,type
+    ) a join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_ka_rv_detail_3
+    select a.zone_name,a.receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+           a.vendor as customer,'''' as vendor,f.dd,f.project,f.project_cate,a.money,concat_ws('' '',a.pstng_date,item_text) text,a.pstng_date
+    from
+    (
+    select a.zone_name,a.receipt_id,a.pstng_date,round(sum(money),2) money,flag,vendor 
+      from 
+    (
+    select zone_name,sale_id as receipt_id,pstng_date,
+           price*qty money,
+           case when type = 2 then ''DAIXIAO''
+                when type = 2 and vendor = ''01020007'' then ''SH_BSDS''
+                end flag,
+           vendor
+      from mds_fin_sale_detail
+     where type = 2
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+       and user_type = 3
+    ) as a 
+     group by zone_name,receipt_id,pstng_date,flag,vendor
+    union all
+    select zone_name,receipt_id,pstng_date,round(sum(money),2) as money,flag,vendor  
+      from 
+    (
+    select zone_name,second_receipt_id as receipt_id,pstng_date,
+           sale_price*qty money,
+           concat(''SH'',case when type = 2 then ''DAIXIAO''
+                              when type = 2 and vendor = ''01020007'' then ''BSDS''
+                          end) flag,
+           vendor
+       from mds_fin_return_detail
+      where type = 2
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
+    ) as a 
+    group by zone_name,receipt_id,pstng_date,vendor,flag
+    ) as a 
+    join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+  
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+ set @strsql = '
+    insert into fin_certificate_ka_rv_detail
+    select zone_name,sale_id as receipt_id,pstng_date,
+           sum(price*qty) all_money,max(final_amount) money,
+           sum(case when type = 2 then price*qty else 0 end) dx
+      from mds_fin_sale_detail
+     where user_type = 3
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,sale_id,pstng_date ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+ set @strsql = '
+    insert into fin_certificate_ka_rv_detail_4 
+    select 
+            a.zone_name,
+            a.receipt_id,
+            a.tax_rate,
+            f.doc_type,
+            f.dctype,
+            f.gl_account doc_number,
+            f.dd,
+            f.project,
+            f.project_cate,
+            (round((s_money*(all_money-money)/(all_money))/(1+a.tax_rate/100) ,2))*f.pn money,
+            concat_ws('' '',a.pstng_date,item_text) text,
+            a.pstng_date,
+            a.flag,
+            '''' as customer,
+            '''' as vendor,
+            ''1'' status
+    from (
+    select zone_name,pstng_date,sale_id as receipt_id,
+           case when type = 0 or type = 1 then tax else 0 end tax_rate,
+           concat(''NO'',
+                  case when type = 0 then ''WUMART'' 
+                       when type = 1 then ''JISHOU'' 
+                       when type = 2 then ''DAIXIAO''
+                       end,
+                  ''_'',
+                  case when type = 0 or type = 1 then tax else 0 end,''_ZK'') flag,
+           sum(price*qty) s_money
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and user_type = 3
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,sale_id,pstng_date,type,tax 
+    ) as a
+    join 
+    (select receipt_id,pstng_date,all_money,money
+       from fin_certificate_ka_rv_detail
+    ) as n 
+    on a.receipt_id=n.receipt_id and a.pstng_date = n.pstng_date
+    join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_ka_rv_detail_5 
+    select a.zone_name,
+            a.receipt_id,
+            a.tax_rate,
+            f.doc_type,
+            f.dctype,
+            f.gl_account doc_number,
+            f.dd,
+            f.project,
+            f.project_cate,
+            (round( (s_money*(all_money-money)*(a.tax_rate/100)/(all_money))/(1+a.tax_rate/100) ,2))*f.pn money,
+            concat_ws('' '',a.pstng_date,item_text) text,
+            a.pstng_date,
+            a.flag,
+            '''' as customer,
+            '''' as vendor,
+            ''1'' status
+    from (
+    select zone_name,pstng_date,sale_id as receipt_id,
+           case when type = 0 or type = 1 then tax else 0 end tax_rate,
+           concat(case when type = 0 then ''WUMART'' 
+                       when type = 1 then ''JISHOU'' 
+                       when type = 2 then ''DAIXIAO''
+                       end,
+                  ''_'',
+                  case when type = 0 or type = 1 then tax else 0 end,''_ZK'') flag,
+           sum(price*qty) s_money
+      from mds_fin_sale_detail
+     where type in (0,1)
+       and user_type = 3
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,sale_id,pstng_date,type,tax 
+    ) as a
+    join 
+    (select receipt_id,pstng_date,all_money,money
+       from fin_certificate_ka_rv_detail
+    ) as n 
+    on a.receipt_id=n.receipt_id and a.pstng_date = n.pstng_date
+    join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_ka_rv_detail_7 
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_ka_rv_detail_1
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_ka_rv_detail_2
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_ka_rv_detail_3
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_ka_rv_detail_4
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+    from fin_certificate_ka_rv_detail_5';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
+  set @strsql = '
+    insert into fin_certificate_ka_rv
+    select zone_name,receipt_id,tax_rate,''KA_RV'' as doc_type,dctype,doc_number,dd,project,project_cate,money,text,pstng_date,customer,vendor,''1'' status,
+        unix_timestamp() created_at,unix_timestamp() updated_at
+    from (
+        select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,f.customer as customer,'''' as vendor,f.dd,
+               case when f.gl_account = ''6001010101'' or f.gl_account = ''6001010203'' then ''0101'' else '''' end as project,
+               case when f.gl_account = ''6001010101'' or f.gl_account = ''6001010203'' then ''01'' else '''' end as project_cate,
+               money,concat_ws('' '',pstng_date,f.item_text) text,pstng_date
+        from (
+            SELECT zone_name,receipt_id,pstng_date,
+                ''RV_D'' flag,
+                sub_money money
+
+            from (
+                select zone_name,receipt_id,pstng_date,
+                    round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                from fin_certificate_ka_rv_detail_7
+                group by zone_name,receipt_id,pstng_date
+            ) a
+            where round(sub_money,2)<>0
+        ) a
+        join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+        union all
+        select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
+        from fin_certificate_ka_rv_detail_7
+    ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_ka_rv
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
+
+  select FOUND_ROWS() into ka_rv_num; 
+end
+//
+
+#    call fin_voucher_ka_rv('2017-07-01','2017-07-10',@ka_rv);
+
+#KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2
+
+DROP PROCEDURE IF EXISTS fin_voucher_ka_zv2;  
+  delimiter //
+  create procedure fin_voucher_ka_zv2 
+  (
+   IN pstng_date_start varchar(10), /*起始日期*/
+   IN pstng_date_end VARCHAR(10), /*结束日期*/
+   out ka_zv2_num int
+   )
+  begin 
+  set @pstng_date_start = pstng_date_start;
+
+  if pstng_date_end='' 
+     then
+       set @pstng_date_end = pstng_date_start;
+  else 
+       set @pstng_date_end = pstng_date_end;
+  end if;
+
+  truncate table fin_certificate_ka_zv2_detail;
+  
+  set @strsql = 'delete from fin_certificate_ka_zv2 where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_result where doc_type = ''KA_ZV2'' and pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+      insert into fin_certificate_ka_zv2_detail
+      select a.zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+             a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws('' '',pstng_date,item_text) as text,pstng_date
+      from (
+      select zone_name,receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             flag
+      from 
+      (
+      select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+             concat(''ZV2_'',case when type = 0 then ''WUMART''
+                                  when type = 1 then ''JISHOU'' end) as flag
+        from mds_fin_sale_detail
+       where type in (0,1)
+         and pstng_date >= @pstng_date_start
+         and pstng_date <= @pstng_date_end
+         and user_type = 3
+      ) as a  
+      group by zone_name,receipt_id,pstng_date,flag
+      union all
+      select zone_name,receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             flag
+      from 
+      (
+      select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+             concat(''ZV2_KC_'',case when type = 0 then ''WUMART'' 
+                                     when type = 1 then ''JISHOU'' end) as flag
+        from mds_fin_sale_detail
+       where type in (0,1)
+         and pstng_date >= @pstng_date_start
+         and pstng_date <= @pstng_date_end
+         and user_type = 3
+      ) as a  
+      group by zone_name,receipt_id,pstng_date,flag
+      union all
+      select zone_name,second_receipt_id as receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             concat(''ZV2_SH_'',case when type = 0 then ''WUMART'' 
+                                     when type = 1 then ''JISHOU'' end) as flag
+        from 
+      (select zone_id,zone_name,return_id,second_receipt_id,average_price*qty money,tax as tax_rate,type,pstng_date
+         from mds_fin_return_detail
+        where type in (0,1)
+          and pstng_date >= @pstng_date_start
+          and pstng_date <= @pstng_date_end
+      ) as b
+      group by zone_name,second_receipt_id,pstng_date,type
+      union all
+      select zone_name,second_receipt_id as receipt_id,'''' as customer,'''' as vendor,pstng_date,
+             round(sum(money),2) money,
+             concat(''ZV2_SH_KC_'',case when type = 0 then ''WUMART'' 
+                                        when type = 1 then ''JISHOU'' end) as flag
+        from 
+      (select zone_id,zone_name,return_id,second_receipt_id,average_price*qty money,tax as tax_rate,type,pstng_date
+         from mds_fin_return_detail
+        where type in (0,1)
+          and pstng_date >= @pstng_date_start
+          and pstng_date <= @pstng_date_end
+      ) as b
+      group by zone_name,second_receipt_id,pstng_date,type
+      ) as a
+      join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+ 
+  set @strsql = '
+        insert into fin_certificate_ka_zv2
+        select zone_name,receipt_id,tax_rate,''KA_ZV2'' as doc_type,dctype,doc_number,dd,'''' as project,'''' as project_cate,money,
+               text,pstng_date,customer,vendor,''1'' status,
+            unix_timestamp() created_at,unix_timestamp() updated_at
+        from (
+            select zone_name,receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,
+                   '''' as customer,'''' as vendor,f.dd,money,concat_ws('' '',pstng_date,item_text) text,pstng_date
+            from (
+                SELECT zone_name,receipt_id,pstng_date,
+                    case when sub_money>0 then ''ZV2_D'' else ''ZV2_C'' end flag,
+                    abs(sub_money) money
+                from (
+                    select zone_name,receipt_id,pstng_date,
+                        round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
+                    from fin_certificate_ka_zv2_detail
+                    group by zone_name,receipt_id,pstng_date
+                ) a
+                where round(sub_money,2)<>0
+            ) a
+            join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area
+            union all
+            select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,money,text,pstng_date
+            from fin_certificate_ka_zv2_detail
+        ) b ';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+ 
+ 
+  set @strsql = '
+    insert into fin_certificate_result
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_ka_zv2
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+  
+  select FOUND_ROWS() into ka_zv2_num;
+end
+//
+
+
+#  call fin_voucher_ka_zv2('2017-07-01','2017-07-10',@ka_zv2)
+
+#DRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDRDR
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /*删除商城销售表区间历史数据*/
+  set @strsql = 'delete from mds_finance_sale_detail where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE delsql FROM @strsql;  
+  EXECUTE delsql; 
+  DROP PREPARE delsql;
+
+  /*删除商城退货表区间历史数据*/
+  set @strsql = 'delete from mds_finance_return_detail where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE delsql FROM @strsql;  
+  EXECUTE delsql; 
+  DROP PREPARE delsql;
+
+  /*插入商城销售明细数据临时表*/
+  set @strsql = '
+     insert into mds_finance_sale_detail 
+     select a.zone_id,a.zone_name,a.order_id,a.sale_id,a.final_amount,a.user_type,
+            a.fin_code as customer,b.product_code,b.product_name,b.price,b.qty,b.real_qty,b.tax,
+            b.average_price,b.nt_price,b.type,b.fin_code as vendor,a.pstng_date
+       from 
+            (select zone_id,zone_name,sale_id,order_id,final_amount,day as pstng_date,user_type,fin_code,day
+               from mall_sale_head
+              where day >= @pstng_date_start                       
+                and day <= @pstng_date_end
+            ) as a 
+            join 
+            (select zone_id,sale_id,product_code,product_name,price,qty,real_qty,average_price,nt_price,
+                    tax,type,fin_code
+               from mall_sale_detail
+              where day >= @pstng_date_start                       
+                and day <= @pstng_date_end
+            ) as b
+     on (a.zone_id = b.zone_id and a.sale_id = b.sale_id)';
+  PREPARE createsql FROM @strsql;  
+  EXECUTE createsql; 
+  DROP PREPARE createsql;
+
+  select '商城销售插入插入完成';
+  #select @strsql;
+  
+  /*插入商城退货明细数据表*/
+  set @strsql = '
+       insert into mds_finance_return_detail 
+       select a.zone_id,a.zone_name,a.return_id,a.receipt_id,a.second_receipt_id,a.it_amount,a.nt_amount,
+            b.product_code,b.product_name,b.qty,b.real_qty,b.sale_price,b.average_price,b.tax,b.type,b.fin_code as vendor,a.pstng_date
+       from (select zone_id,zone_id as zone_name,return_id,receipt_id,second_receipt_id,it_amount,
+                    nt_amount,day as pstng_date
+               from mall_return_head
+              where day >= @pstng_date_start                       
+                and day <= @pstng_date_end
+            ) as a
+            join
+            (select zone_id,zone_id as zone_name,return_id,product_code,product_name,sale_price,
+                    average_price,qty,real_qty,tax,type,fin_code
+               from mall_return_detail
+              where day >= @pstng_date_start                       
+                and day <= @pstng_date_end
+            ) as b
+            on (a.zone_id = b.zone_id and a.return_id = b.return_id)';
+
+  PREPARE createsql FROM @strsql;  
+  EXECUTE createsql; 
+  DROP PREPARE createsql;
+  select '商城退货插入插入完成';
+
+
+  end
+  //
+
+
+#call fin_voucher('RE','2017-07-01','2017-07-10');
+
+
+
+
+
+
+
