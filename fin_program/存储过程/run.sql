@@ -36,14 +36,14 @@ call fin_voucher('BSDS_WE','2017-09-15','2017-09-15');
 call fin_voucher('KA_RV','2017-09-15','2017-09-15');
 call fin_voucher('RV','2017-09-15','2017-09-15');
 
-call fin_voucher('CASH','2017-09-15','2017-09-15');
-call fin_voucher('THIRD','2017-09-15','2017-09-15');
-call fin_voucher('BANK','2017-09-15','2017-09-15');
+call fin_voucher('CASH','2017-09-30','2017-10-15');
+call fin_voucher('THIRD','2017-09-30','2017-10-15');
+call fin_voucher('BANK','2017-09-30','2017-10-15');
 
 
-call fin_voucher('THIRD_BUG','2017-09-15','2017-09-15');
-call fin_voucher('CASH_BUG','2017-09-15','2017-09-15');
-call fin_voucher('BANK_BUG','2017-09-15','2017-09-15');
+call fin_voucher('THIRD_BUG','2017-09-30','2017-10-15');
+call fin_voucher('CASH_BUG','2017-09-30','2017-10-15');
+call fin_voucher('BANK_BUG','2017-09-30','2017-10-15');
 
 call fin_voucher('KZ','2017-09-01','2017-09-11');
 
@@ -121,7 +121,7 @@ call fin_voucher('BANK','2017-09-15','2017-09-15');
 
 call fin_voucher('THIRD_BUG','2017-09-15','2017-09-15');
 call fin_voucher('CASH_BUG','2017-09-15','2017-09-15');
-call fin_voucher('BANK_BUG','2017-09-15','2017-09-15');
+call fin_voucher('BANK_BUG','2017-10-15','2017-10-15');
 
 
 select name,sum(money) from fin_voucher where pstng_date >= '2017-09-15' and pstng_date <= '2017-09-09' and dctype = 'RV' and money > 0
