@@ -1,7 +1,7 @@
 
-DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;  
+DROP PROCEDURE IF EXISTS fin_voucher_rv_new;  
   delimiter //
-  create procedure fin_voucher_rv_modify 
+  create procedure fin_voucher_rv_new 
   (
    IN pstng_date_start varchar(10), /*起始日期*/
    IN pstng_date_end VARCHAR(10), /*结束日期*/
@@ -24,9 +24,19 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
   drop table if exists fin_certificate_rv_detail_4;
   drop table if exists fin_certificate_rv_detail_5;
   truncate table fin_certificate_rv_detail_all;
-  drop table if exists fin_certificate_rv_modify;
 
-  
+
+  set @strsql = 'delete from fin_certificate_result where dctype = ''RV''';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = 'delete from fin_certificate_rv where pstng_date >= @pstng_date_start and pstng_date <= @pstng_date_end';
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+
   set @strsql = '
     create table fin_certificate_rv_detail_1 as 
     select a.zone_name,a.receipt_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
@@ -48,7 +58,10 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
                         when pay_type=0 then ''现金''
                         end as type
               from mds_fin_sale_detail
-             where user_type = 1
+             where pstng_date >= @pstng_date_start                       
+               and pstng_date <= @pstng_date_end
+               and user_type = 1
+               and type in (0,1,2)
              group by zone_name,sale_id,pstng_date,customer,pay_type
             ) as a
             join dim_fin_certificate_info_u8 f on f.flag=TYPE and a.zone_name=f.area';
@@ -70,6 +83,8 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
                               end,''_'',tax) flag
       from mds_fin_sale_detail
      where type in (0,1)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
        and user_type = 1
        and vendor <> ''999999''
      group by zone_name,sale_id,pstng_date,tax,type 
@@ -81,6 +96,8 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
                        end,''_'',tax) flag
       from mds_fin_sale_detail
      where type in (0,1)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
        and user_type = 1
        and vendor <> ''999999''
      group by zone_name,sale_id,pstng_date,tax,type 
@@ -98,6 +115,8 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
        from mds_fin_return_detail
       where type in (0,1)
         and user_type = 1
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
         and vendor <> ''999999''
     ) as a
     group by zone_name,second_receipt_id,pstng_date,tax,type
@@ -112,6 +131,8 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
        from mds_fin_return_detail
       where type in (0,1)
         and user_type = 1
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
         and vendor <> ''999999''
     ) as b
     group by zone_name,second_receipt_id,pstng_date,tax,type
@@ -138,8 +159,10 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
                 end flag,
            vendor
       from mds_fin_sale_detail
-     where type in (2,4)
+     where type = 2
        and user_type = 1
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
        and vendor <> ''999999''
     ) as a 
      group by zone_name,receipt_id,pstng_date,flag,vendor
@@ -154,8 +177,10 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
                           end) flag,
            vendor
        from mds_fin_return_detail
-      where type in (2,4)
+      where type = 2
         and user_type = 1
+        and pstng_date >= @pstng_date_start
+        and pstng_date <= @pstng_date_end
         and vendor <> ''999999''
     ) as a 
     group by zone_name,receipt_id,pstng_date,vendor,flag
@@ -174,6 +199,9 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
            round(sum(case when type = 2 then price*real_qty else 0 end),2) dx
       from mds_fin_sale_detail
      where user_type = 1
+       and type in (0,1,2)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
        and vendor <> ''999999''
      group by zone_name,sale_id,pstng_date ';
 
@@ -217,6 +245,9 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
            max(afs_amount) afs_money
       from mds_fin_sale_detail
      where user_type = 1
+       and type in (0,1,2)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
        and vendor <> ''999999''
      group by zone_name,sale_id,pstng_date,type,tax 
     ) as a
@@ -265,6 +296,9 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
            max(afs_amount) afs_money
       from mds_fin_sale_detail
      where user_type = 1
+       and type in (0,1,2)
+       and pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
        and vendor <> ''999999''
      group by zone_name,sale_id,pstng_date,type,tax 
     ) as a
@@ -306,7 +340,23 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
   DROP PREPARE slesql;
 
   set @strsql = '
-    create table fin_certificate_rv_modify as 
+        insert into fin_sale_bug
+        SELECT zone_name,receipt_id,sub_money money,pstng_date,type
+          from (select zone_name,receipt_id,pstng_date,
+                       round(round(sum(case when dctype=''C'' then money else 0 end),2) - 
+                       round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money,
+                       ''RV'' as type
+                  from fin_certificate_rv_detail_all
+                 group by zone_name,receipt_id,pstng_date
+                ) a
+         where abs(sub_money)>0.1';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_rv
     select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,money,text,pstng_date,customer,vendor,''1'' status,
         unix_timestamp() created_at,unix_timestamp() updated_at
     from (
@@ -322,6 +372,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
                 select zone_name,receipt_id,pstng_date,
                     round(round(sum(case when dctype=''C'' then money else 0 end),2) - round(sum(case when dctype=''D'' then money else 0 end),2),2) sub_money
                 from fin_certificate_rv_detail_all as a
+               where not exists (select distinct receipt_id from fin_sale_bug as b where a.receipt_id = b.receipt_id)
                 group by zone_name,receipt_id,pstng_date
             ) a
             where round(sub_money,2)<>0
@@ -330,10 +381,26 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
         union all
         select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,customer,vendor,dd,project,project_cate,money,text,pstng_date
           from fin_certificate_rv_detail_all as a 
+         where not exists (select distinct receipt_id from fin_sale_bug as b where a.receipt_id = b.receipt_id)
     ) b ';
 
   PREPARE slesql FROM @strsql; 
   EXECUTE slesql; 
+  DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_result
+    (name,receipt_id,tax_rate,dctype,cd_type,doc_number,dd,project,project_cate,money,text,pstng_date,customer,vendor,status,created_at,updated_at)
+    select zone_name,'''' receipt_id,'''' tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           sum(money) money,text,pstng_date,customer,vendor,status,created_at,updated_at
+      from fin_certificate_rv
+     where pstng_date >= @pstng_date_start
+       and pstng_date <= @pstng_date_end
+     group by zone_name,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,pstng_date,
+              text,customer,vendor,status,created_at,updated_at';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
   DROP PREPARE slesql;
 
   select FOUND_ROWS() into rv_num; 
@@ -354,6 +421,5 @@ DROP PROCEDURE IF EXISTS fin_voucher_rv_modify;
 end
 //
 
-#  call fin_voucher_rv_modify('2017-09-14','2017-09-14',@rv);
-
+#  call fin_voucher_rv_new('2017-09-14','2017-09-14',@rv);
 

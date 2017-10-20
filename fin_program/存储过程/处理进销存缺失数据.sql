@@ -7,26 +7,27 @@ select a.zone_id,a.zone_name,a.order_id,a.sale_id,a.pay_type,a.final_amount,a.af
  from 
       (select zone_id,zone_name,sale_id,order_id,pay_type,final_amount,day as pstng_date,user_type,fin_code,user_fin_code,day,afs_amount,provider
          from mall_sale_head
-        where day >= '2017-07-01'                       
-          and day <= '2017-08-10'
+        where day >= '2017-09-01'                       
+          and day <= '2017-09-31'
           and sale_id in 
-          () as a 
+          (8859192744671615350,872621778189706086,6306145958962937856) 
+      ) as a 
       join 
       (select a.zone_id,a.sale_id,a.product_code,a.product_name,a.price,a.qty,a.real_qty,a.average_price,a.nt_price,
               a.tax,a.type,a.fin_code
          from mall_sale_detail as a 
-        where day >= '2017-07-01'                       
-          and day <= '2017-08-10'
+        where day >= '2017-09-01'                       
+          and day <= '2017-09-31'
           and not exists(select zone_id,sale_id 
                           from mall_sale_detail as b 
-                         where day >= '2017-07-01'                       
-                           and day <= '2017-08-10'
+                         where day >= '2017-09-01'                       
+                           and day <= '2017-09-31'
                            and (fin_code = '' or fin_code is null)
                            and type = 2
                            and a.sale_id = b.sale_id 
                            and a.zone_id = b.zone_id)
       ) as b
-      on (a.zone_id = b.zone_id and a.sale_id = b.sale_id)
+      on (a.zone_id = b.zone_id and a.sale_id = b.sale_id);
 
 
 insert into mds_fin_vss_detail
