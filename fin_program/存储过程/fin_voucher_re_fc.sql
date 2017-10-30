@@ -71,19 +71,19 @@ DROP PROCEDURE IF EXISTS fin_voucher_re_fc;
         create table fin_certificate_re_fc_detail as 
         select zone_name,order_id as order_id,'''' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,'''' customer,vendor,f.dd,money,concat_ws('' '',pstng_date,item_text) text,pstng_date
         from (
-        select zone_name,order_id,day as pstng_date,round(nt_amount,2)*-1 as money,''FC_RE_WUMART'' as flag,'''' vendor
+        select zone_name,order_id,day as pstng_date,round(nt_amount,2) as money,''FC_RE_WUMART'' as flag,'''' vendor
           from wm_return_head
          where day >= @pstng_date_start
            and day <= @pstng_date_end
            and gen_evidence = 0
         union all
-        select zone_name,order_id,day as pstng_date,round(it_amount - nt_amount,2)*-1 as money,''FC_RE_TAX_WUMART'' as flag,'''' vendor
+        select zone_name,order_id,day as pstng_date,round(it_amount - nt_amount,2) as money,''FC_RE_TAX_WUMART'' as flag,'''' vendor
           from wm_return_head
          where day >= @pstng_date_start
            and day <= @pstng_date_end
            and gen_evidence = 0
         union all
-        select zone_name,order_id,day as pstng_date,round(it_amount,2)*-1 as money,''FC_RE_GY'' as flag,
+        select zone_name,order_id,day as pstng_date,round(it_amount,2) as money,''FC_RE_GY'' as flag,
                case when zone_id = ''1000'' then ''01010001''
                     when zone_id = ''1001'' then ''02010001''
                     when zone_id = ''1002'' then ''03010001''
