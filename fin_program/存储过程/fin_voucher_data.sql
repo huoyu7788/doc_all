@@ -223,8 +223,8 @@ DROP PROCEDURE IF EXISTS fin_voucher_data;
                   end zone_name,
              vid,return_id as order_id,it_amount*-1,nt_amount*-1,from_unixtime(date,''%Y-%m-%d'') as pstng_date
         from return_head
-       where from_unixtime(date,''%Y-%m-%d'') >= @pstng_date_start
-         and from_unixtime(date,''%Y-%m-%d'') <= @pstng_date_end
+       where from_unixtime(created_at,''%Y-%m-%d'') >= @pstng_date_start
+         and from_unixtime(created_at,''%Y-%m-%d'') <= @pstng_date_end
       ) as a
       left join
       (select vid,type,fin_code as vendor,name as vendor_name from vender_main) as b 

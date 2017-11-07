@@ -7,27 +7,62 @@ select a.zone_id,a.zone_name,a.order_id,a.sale_id,a.pay_type,a.final_amount,a.af
  from 
       (select zone_id,zone_name,sale_id,order_id,pay_type,final_amount,day as pstng_date,user_type,fin_code,user_fin_code,day,afs_amount,provider
          from mall_sale_head
-        where day >= '2017-09-01'                       
-          and day <= '2017-09-31'
+        where day >= '2017-10-01'                       
+          and day <= '2017-10-31'
           and sale_id in 
-          (8859192744671615350,872621778189706086,6306145958962937856) 
+          (4510826672451313552,558495769320590776,5760997800476081878,2972002996883912405,4716303427080116878,6484529231559266603) 
       ) as a 
       join 
       (select a.zone_id,a.sale_id,a.product_code,a.product_name,a.price,a.qty,a.real_qty,a.average_price,a.nt_price,
               a.tax,a.type,a.fin_code
          from mall_sale_detail as a 
-        where day >= '2017-09-01'                       
-          and day <= '2017-09-31'
+        where day >= '2017-10-01'                       
+          and day <= '2017-10-31'
           and not exists(select zone_id,sale_id 
                           from mall_sale_detail as b 
-                         where day >= '2017-09-01'                       
-                           and day <= '2017-09-31'
+                         where day >= '2017-10-01'                       
+                           and day <= '2017-10-31'
                            and (fin_code = '' or fin_code is null)
                            and type = 2
                            and a.sale_id = b.sale_id 
                            and a.zone_id = b.zone_id)
       ) as b
       on (a.zone_id = b.zone_id and a.sale_id = b.sale_id);
+
+truncate table mds_fin_return_detail;
+insert into mds_fin_return_detail 
+       select a.zone_id,a.zone_name,a.return_id,a.receipt_id,a.second_receipt_id,a.it_amount,a.nt_amount,a.user_type,
+            b.product_code,b.product_name,b.qty,b.real_qty,b.sale_price,b.average_price,b.tax,b.type,b.fin_code as vendor,a.pstng_date
+       from (select zone_id,zone_name,return_id,receipt_id,second_receipt_id,it_amount,user_type,
+                    nt_amount,day as pstng_date
+               from mall_return_head
+              where day >= '2017-10-01'                       
+                and day <= '2017-10-31'
+                and second_receipt_id in 
+                 (4510826672451313552,558495769320590776,5760997800476081878,2972002996883912405,4716303427080116878,6484529231559266603) 
+            ) as a
+            join
+            (select zone_id,zone_name,return_id,product_code,product_name,sale_price,
+                    average_price,qty,real_qty,tax,type,fin_code
+               from mall_return_detail as a
+              where day >= '2017-10-01'                       
+                and day <= '2017-10-31'
+                and type in (0,1,2,3)
+                and not exists(select zone_id,return_id 
+                                from mall_return_detail as b 
+                               where day >= '2017-10-01'                       
+                                 and day <= '2017-10-31'
+                                 and (fin_code = '' or fin_code is null)
+                                 and type = 2
+                                 and a.return_id = b.return_id 
+                                 and a.zone_id = b.zone_id)
+            ) as b
+            on (a.zone_id = b.zone_id and a.return_id = b.return_id);
+
+
+
+
+
 
 
 insert into mds_fin_vss_detail
