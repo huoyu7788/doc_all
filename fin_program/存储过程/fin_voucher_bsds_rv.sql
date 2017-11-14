@@ -36,6 +36,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_rv;
        set @pstng_date_end = pstng_date_end;
   end if;
 
+  drop table if exists fin_certificate_bsds_rv_detail;
  
   set @strsql = 'delete from fin_certificate_result where dctype = ''BSDS_RV''';
   PREPARE slesql FROM @strsql; 
@@ -49,7 +50,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_rv;
 
 
   set @strsql = '
-        insert into fin_certificate_bsds_rv
+        create table fin_certificate_bsds_rv_detail as 
         select zone_name,sale_id as receipt_id,'''' as tax_rate,''BSDS_RV'' as doc_type,''C'' as dctype,
                ''12210302'' as doc_number,'''' as dd,'''' as project,'''' as project_cate,
                round(sum(price*qty)*0.9,2) as money,''商贸公司'' as text,pstng_date,'''' as customer,
@@ -98,7 +99,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_rv;
 
         union all 
         select zone_name,sale_id as receipt_id,tax as tax_rate,''BSDS_RV'' doc_type,''D'' dctype,
-               case when tax = 17 then ''2221010101'' else ''2221010102'' end doc_number,
+               case when tax = 17 then ''2221010101'' else ''2221010104'' end doc_number,
                '''' dd,'''' as project,'''' as project_cate,round(sum(price*qty*(tax/100)/(1+tax/100)),2) as money,
                ''商贸公司'' as text,pstng_date,'''' as customer,'''' as vendor
         from mds_fin_sale_detail
@@ -109,6 +110,30 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_rv;
   PREPARE slesql FROM @strsql; 
   EXECUTE slesql; 
   DROP PREPARE slesql;
+
+  set @strsql = '
+    insert into fin_certificate_bsds_rv
+    select zone_name,'''' as receipt_id,'''' as tax_rate,''BSDS_RV'' as doc_type,''D'' as dctype,
+               ''6001010201'' as doc_number,''050202'' as dd,''0101'' as project,''01'' as project_cate,
+               sub_money as money,''商贸公司'' as text,pstng_date,'''' as customer,'''' as vendor
+      from (select zone_name,pstng_date,
+                   sum(case when dctype = ''C'' then money end) - 
+                   sum(case when dctype = ''D'' then money end) as sub_money
+              from fin_certificate_bsds_rv_detail
+             where pstng_date >= @pstng_date_start
+               and pstng_date <= @pstng_date_end
+             group by zone_name,pstng_date
+            ) as a
+      where round(sub_money,2)<>0
+    union all
+    select zone_name,receipt_id,tax_rate,doc_type,dctype,doc_number,dd,project,project_cate,
+           money,text,pstng_date,customer,vendor
+      from fin_certificate_bsds_rv_detail';
+
+  PREPARE slesql FROM @strsql; 
+  EXECUTE slesql ; 
+  DROP PREPARE slesql;
+
 
   set @strsql = '
     insert into fin_certificate_result
@@ -126,7 +151,12 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_rv;
   EXECUTE slesql ; 
   DROP PREPARE slesql;
 
+  truncate table fin_certificate_bsds_rv_detail;
+  drop table fin_certificate_bsds_rv_detail;
+
   select FOUND_ROWS() into bsds_rv_num; 
+
+
 end
 //
 

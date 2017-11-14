@@ -364,9 +364,9 @@ join dim_fin_certificate_info_u8 f on f.flag=a.flag and a.zone_name=f.area;
 drop table fin_certificate_rv_detail_all_modify;
 create table fin_certificate_rv_detail_all_modify as 
 select zone_name,waybill_id,receipt_id,tax_rate,doc_type,dctype,doc_number,
-     case when doc_number = '11220202' and zone_name = '北京' and (customer = '' or customer is null) then '01010013'
-          when doc_number = '11220202' and zone_name = '天津' and (customer = '' or customer is null) then '02010003'
-          when doc_number = '11220202' and zone_name = '杭州' and (customer = '' or customer is null) then '03010001'
+     case when doc_number = '11220202' and zone_name = '北京' and (customer = ' or customer is null) then '01010013'
+          when doc_number = '11220202' and zone_name = '天津' and (customer = ' or customer is null) then '02010003'
+          when doc_number = '11220202' and zone_name = '杭州' and (customer = ' or customer is null) then '03010001'
           else customer end as customer,vendor,dd,project,project_cate,money,text,pstng_date
 from fin_certificate_waybill_rv_detail_1
 union all
@@ -434,8 +434,8 @@ drop table fin_certificate_waybill_rv_detail_1;
 #KA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RVKA_RV
 drop table fin_certificate_ka_rv_detail_1;
 create table fin_certificate_ka_rv_detail_1 as 
-select a.zone_name,a.receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
-     case when f.gl_account = '112203' then a.customer else '' end as customer,'' as vendor,f.dd,
+select a.zone_name,a.receipt_id,' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+     case when f.gl_account = '112203' then a.customer else ' end as customer,' as vendor,f.dd,
      a.money,
      concat_ws(' ',a.pstng_date,f.item_text) text,
      f.project,
@@ -463,7 +463,7 @@ from (
 
 drop table fin_certificate_ka_rv_detail_2;
 create table fin_certificate_ka_rv_detail_2 as 
-select a.zone_name,receipt_id,a.tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,'' as customer,'' as vendor,f.dd,f.project,f.project_cate,
+select a.zone_name,receipt_id,a.tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,' as customer,' as vendor,f.dd,f.project,f.project_cate,
    money*pn as money,concat_ws(' ',pstng_date,item_text) text,pstng_date
 FROM (
 select zone_name,sale_id as receipt_id,pstng_date,tax as tax_rate,
@@ -527,8 +527,8 @@ group by zone_name,second_receipt_id,pstng_date,tax,type
 
 drop table fin_certificate_ka_rv_detail_3;
 create table fin_certificate_ka_rv_detail_3 as 
-select a.zone_name,a.receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
-     a.vendor as customer,'' as vendor,f.dd,f.project,f.project_cate,a.money*f.pn as money,concat_ws(' ',a.pstng_date,item_text) text,a.pstng_date
+select a.zone_name,a.receipt_id,' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+     a.vendor as customer,' as vendor,f.dd,f.project,f.project_cate,a.money*f.pn as money,concat_ws(' ',a.pstng_date,item_text) text,a.pstng_date
 from
 (
 select a.zone_name,a.receipt_id,a.pstng_date,round(sum(money),2) money,flag,vendor 
@@ -595,8 +595,8 @@ select
       concat_ws(' ',a.pstng_date,item_text) text,
       a.pstng_date,
       a.flag,
-      '' as customer,
-      '' as vendor,
+      ' as customer,
+      ' as vendor,
       '1' status
 from (
 select a.zone_name,a.receipt_id,a.tax_rate,a.s_money,a.pstng_date,a.flag,n.all_money,n.money,a.afs_money
@@ -642,8 +642,8 @@ select a.zone_name,
       concat_ws(' ',a.pstng_date,item_text) text,
       a.pstng_date,
       a.flag,
-      '' as customer,
-      '' as vendor,
+      ' as customer,
+      ' as vendor,
       '1' status
 from (
 select a.zone_name,a.receipt_id,a.tax_rate,a.s_money,a.pstng_date,a.flag,n.all_money,n.money,a.afs_money
@@ -700,9 +700,9 @@ create table fin_certificate_ka_rv_modify as
 select zone_name,receipt_id,tax_rate,'KA_RV' as doc_type,dctype,doc_number,dd,project,project_cate,money,text,pstng_date,customer,vendor,'1' status,
   unix_timestamp() created_at,unix_timestamp() updated_at
 from (
-  select zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,f.customer as customer,'' as vendor,f.dd,
-         case when f.gl_account = '6001010101' or f.gl_account = '6001010203' then '0101' else '' end as project,
-         case when f.gl_account = '6001010101' or f.gl_account = '6001010203' then '01' else '' end as project_cate,
+  select zone_name,receipt_id,' tax_rate,f.doc_type,f.dctype,f.gl_account doc_number,f.customer as customer,' as vendor,f.dd,
+         case when f.gl_account = '6001010101' or f.gl_account = '6001010203' then '0101' else ' end as project,
+         case when f.gl_account = '6001010101' or f.gl_account = '6001010203' then '01' else ' end as project_cate,
          money,concat_ws(' ',pstng_date,f.item_text) text,pstng_date
   from (
       SELECT zone_name,receipt_id,pstng_date,
@@ -737,19 +737,19 @@ on (a.receipt_id = b.sale_id)
 
 mysql -h192.168.70.7 -uvrmdev -pPass2017vrmdev -P3307 -Dlsh_vrm -e "
 select 
-concat('\'',zone_name),
-concat('\'',waybill_id),
-concat('\'',receipt_id),
-concat('\'',tax_rate),
-concat('\'',doc_type),
-concat('\'',dctype),
-concat('\'',doc_number),
-concat('\'',dd),
-concat('\'',project),
-concat('\'',project_cate),
-concat('\'',money),
-concat('\'',text),
-concat('\'',pstng_date),concat('\'',customer),concat('\'',vendor) from all_data_01_06 where pstng_date = '2017-01-01' "
+concat('\',zone_name),
+concat('\',waybill_id),
+concat('\',receipt_id),
+concat('\',tax_rate),
+concat('\',doc_type),
+concat('\',dctype),
+concat('\',doc_number),
+concat('\',dd),
+concat('\',project),
+concat('\',project_cate),
+concat('\',money),
+concat('\',text),
+concat('\',pstng_date),concat('\',customer),concat('\',vendor) from all_data_01_06 where pstng_date = '2017-01-01' "
 
 cd /home/work
 iconv -f utf8 -t gbk 01.xls -o 001.xls
@@ -759,7 +759,7 @@ iconv -f utf8 -t gbk 01.xls -o 001.xls
 iconv -f utf8 -t gbk 01.xls -o 001.xls
 
 
-mysql -h192.168.70.7 -uvrmdev -pPass2017vrmdev -P3307 -Dlsh_vrm -e "select concat('\'',zone_name), from all_data_01_06 where pstng_date = '2017-01-01' " > /home/work/01.xls
+mysql -h192.168.70.7 -uvrmdev -pPass2017vrmdev -P3307 -Dlsh_vrm -e "select concat('\',zone_name), from all_data_01_06 where pstng_date = '2017-01-01' " > /home/work/01.xls
 
 sh fin.sh all_data_01_06 2017-01-01 2017-01-31
 sh fin.sh all_data_01_06 2017-02-01 2017-02-31
@@ -781,10 +781,10 @@ sh fin.sh all_ka_data_01_06 2017-06-01 2017-06-31
 
 #ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2ZV2
 create table fin_certificate_zv2_detail as 
-select a.zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+select a.zone_name,receipt_id,' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
        a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws(' ',pstng_date,item_text) as text,pstng_date
 from (
-select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        flag
 from 
@@ -801,7 +801,7 @@ select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_r
 ) as a  
 group by zone_name,receipt_id,pstng_date,flag
 union all
-select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        flag
 from 
@@ -818,7 +818,7 @@ select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_r
 ) as a  
 group by zone_name,receipt_id,pstng_date,flag
 union all
-select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,second_receipt_id as receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        concat('ZV2_SH_',case when type = 0 then 'WUMART' 
                                when type = 1 then 'JISHOU' end) as flag
@@ -833,7 +833,7 @@ select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pst
 ) as b
 group by zone_name,second_receipt_id,pstng_date,type
 union all
-select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,second_receipt_id as receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        concat('ZV2_SH_KC_',case when type = 0 then 'WUMART' 
                                   when type = 1 then 'JISHOU' end) as flag
@@ -854,7 +854,7 @@ join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area;
 
 drop table all_zv2_data_01_06;
 create table  all_zv2_data_01_06 as 
-select a.*,b.waybill_id,'' as project,'' as project_cate
+select a.*,b.waybill_id,' as project,' as project_cate
   from 
 (select * from fin_certificate_zv2_detail) as a 
 join 
@@ -874,10 +874,10 @@ sh fin.sh all_zv2_data_01_06 2017-06-01 2017-06-31
 
 #KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2KA_ZV2
 create table fin_certificate_ka_zv2_detail as 
-select a.zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+select a.zone_name,receipt_id,' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
        a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws(' ',pstng_date,item_text) as text,pstng_date
 from (
-select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        flag
 from 
@@ -893,7 +893,7 @@ select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_r
 ) as a  
 group by zone_name,receipt_id,pstng_date,flag
 union all
-select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        flag
 from 
@@ -909,7 +909,7 @@ select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_r
 ) as a  
 group by zone_name,receipt_id,pstng_date,flag
 union all
-select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,second_receipt_id as receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        concat('ZV2_SH_',case when type = 0 then 'WUMART' 
                                when type = 1 then 'JISHOU' end) as flag
@@ -923,7 +923,7 @@ select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pst
 ) as b
 group by zone_name,second_receipt_id,pstng_date,type
 union all
-select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+select zone_name,second_receipt_id as receipt_id,' as customer,' as vendor,pstng_date,
        round(sum(money),2) money,
        concat('ZV2_SH_KC_',case when type = 0 then 'WUMART' 
                                   when type = 1 then 'JISHOU' end) as flag
@@ -942,7 +942,7 @@ join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area;
 
 drop table all_ka_zv2_data_01_06;
 create table  all_ka_zv2_data_01_06 as 
-select a.*,b.waybill_id,'' as project,'' as project_cate
+select a.*,b.waybill_id,' as project,' as project_cate
   from 
 (select * from fin_certificate_ka_zv2_detail) as a 
 join 
@@ -957,6 +957,276 @@ sh fin.sh all_ka_zv2_data_01_06 2017-03-01 2017-03-31
 sh fin.sh all_ka_zv2_data_01_06 2017-04-01 2017-04-31
 sh fin.sh all_ka_zv2_data_01_06 2017-05-01 2017-05-31
 sh fin.sh all_ka_zv2_data_01_06 2017-06-01 2017-06-31
+
+
+
+#ZV2_new
+drop table fin_certificate_zv2_detail_1;
+create table fin_certificate_zv2_detail_1 as 
+select a.zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+       a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws(' ',pstng_date,item_text) as text,pstng_date
+from (
+select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       flag
+from 
+(
+select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+       concat('ZV2_',case when type = 0 then 'WUMART'
+                          when type = 1 then 'JISHOU' end) as flag
+  from mds_fin_waybill_sale_detail
+ where type in (0,1)
+   and pstng_date >= @pstng_date_start
+   and pstng_date <= @pstng_date_end
+   and user_type = 1
+   and vendor <> '999999'
+) as a  
+group by zone_name,receipt_id,pstng_date,flag
+union all
+select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       flag
+from 
+(
+select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+       concat('ZV2_KC_','WUMART') as flag
+  from mds_fin_waybill_sale_detail
+ where type in (0,1,2)
+   and pstng_date >= @pstng_date_start
+   and pstng_date <= @pstng_date_end
+   and user_type = 1
+   and vendor <> '999999'
+) as a  
+group by zone_name,receipt_id,pstng_date,flag
+union all
+select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       flag
+from 
+(
+select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+       concat('ZV2_KC_','JISHOU') as flag
+  from mds_fin_waybill_sale_detail
+ where type = 2   
+   and pstng_date >= @pstng_date_start
+   and pstng_date <= @pstng_date_end
+   and user_type = 1
+   and vendor <> '999999'
+) as a  
+group by zone_name,receipt_id,pstng_date,flag
+) as a
+join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area
+
+update fin_certificate_zv2_detail_1 set doc_number = '11220201' where doc_number = '140501'
+update fin_certificate_zv2_detail_1 set doc_number = '12210203',dctype = 'C' where doc_number = '140502'
+
+
+
+drop table fin_certificate_zv2_detail_2;
+create table fin_certificate_zv2_detail_2 as 
+select a.zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+       a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws(' ',pstng_date,item_text) as text,pstng_date
+from (
+select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       concat('ZV2_SH_',case when type = 0 then 'WUMART' 
+                               when type = 1 then 'JISHOU' end) as flag
+  from 
+(select zone_id,zone_name,return_id,second_receipt_id,average_price*real_qty money,tax as tax_rate,type,pstng_date
+   from mds_fin_waybill_return_detail
+  where type in (0,1)
+    and user_type = 1
+    and pstng_date >= @pstng_date_start
+    and pstng_date <= @pstng_date_end
+    and vendor <> '999999'
+) as b
+group by zone_name,second_receipt_id,pstng_date,type
+union all
+select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       concat('ZV2_SH_KC_','WUMART') as flag
+  from 
+(select zone_id,zone_name,return_id,second_receipt_id,average_price*real_qty money,tax as tax_rate,type,pstng_date
+   from mds_fin_waybill_return_detail
+  where type in (0,1,2)
+    and user_type = 1
+    and pstng_date >= @pstng_date_start
+    and pstng_date <= @pstng_date_end
+    and vendor <> '999999'
+) as b
+group by zone_name,second_receipt_id,pstng_date,type
+
+union all
+select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       concat('ZV2_SH_KC_','JISHOU') as flag
+  from 
+(select zone_id,zone_name,return_id,second_receipt_id,average_price*real_qty money,tax as tax_rate,type,pstng_date
+   from mds_fin_waybill_return_detail
+  where type = 2
+    and user_type = 1
+    and pstng_date >= @pstng_date_start
+    and pstng_date <= @pstng_date_end
+    and vendor <> '999999'
+) as b
+group by zone_name,second_receipt_id,pstng_date,type
+) as a
+join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area
+
+update fin_certificate_zv2_detail_2 set doc_number = '11220201' where doc_number = '140501';
+update fin_certificate_zv2_detail_2 set doc_number = '12210203',dctype = 'D' where doc_number = '140502';
+update fin_certificate_zv2_detail_2 set dctype = 'D' where doc_number = '6401010103';
+update fin_certificate_zv2_detail_2 set dctype = 'D' where doc_number = '6401010202';
+
+
+
+drop table all_zv2_data_01_06;
+create table  all_zv2_data_01_06 as 
+select a.*,b.waybill_id,'' as project,'' as project_cate
+  from 
+(select * from fin_certificate_zv2_detail_1
+ union all
+ select * from fin_certificate_zv2_detail_2
+ ) as a 
+join 
+(select waybill_id,sale_id from mall_sale_head where day >= '2017-01-01' and day <= '2017-06-30') as b 
+on (a.receipt_id = b.sale_id)
+
+
+#KA_ZV2
+
+
+drop table fin_certificate_ka_zv2_detail_1;
+create table fin_certificate_zv2_detail_1 as 
+select a.zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+       a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws(' ',pstng_date,item_text) as text,pstng_date
+from (
+select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       flag
+from 
+(
+select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+       concat('ZV2_',case when type = 0 then 'WUMART'
+                          when type = 1 then 'JISHOU' end) as flag
+  from mds_fin_waybill_sale_detail
+ where type in (0,1)
+   and pstng_date >= @pstng_date_start
+   and pstng_date <= @pstng_date_end
+   and user_type = 2
+   and vendor <> '999999'
+) as a  
+group by zone_name,receipt_id,pstng_date,flag
+union all
+select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       flag
+from 
+(
+select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+       concat('ZV2_KC_','WUMART') as flag
+  from mds_fin_waybill_sale_detail
+ where type in (0,1,2)
+   and pstng_date >= @pstng_date_start
+   and pstng_date <= @pstng_date_end
+   and user_type = 2
+   and vendor <> '999999'
+) as a  
+group by zone_name,receipt_id,pstng_date,flag
+union all
+select zone_name,receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       flag
+from 
+(
+select zone_name,sale_id as receipt_id,average_price*real_qty money,tax as tax_rate,pstng_date,
+       concat('ZV2_KC_','JISHOU') as flag
+  from mds_fin_waybill_sale_detail
+ where type = 2   
+   and pstng_date >= @pstng_date_start
+   and pstng_date <= @pstng_date_end
+   and user_type = 2
+   and vendor <> '999999'
+) as a  
+group by zone_name,receipt_id,pstng_date,flag
+) as a
+join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area
+
+update fin_certificate_zv2_detail_1 set doc_number = '11220201' where doc_number = '140501'
+update fin_certificate_zv2_detail_1 set doc_number = '12210203',dctype = 'C' where doc_number = '140502'
+
+
+
+drop table fin_certificate_ka_zv2_detail_2;
+create table fin_certificate_ka_zv2_detail_2 as 
+select a.zone_name,receipt_id,'' tax_rate,f.doc_type,f.dctype,f.gl_account as doc_number,
+       a.customer,a.vendor,f.dd,money*f.pn as money,concat_ws(' ',pstng_date,item_text) as text,pstng_date
+from (
+select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       concat('ZV2_SH_',case when type = 0 then 'WUMART' 
+                               when type = 1 then 'JISHOU' end) as flag
+  from 
+(select zone_id,zone_name,return_id,second_receipt_id,average_price*real_qty money,tax as tax_rate,type,pstng_date
+   from mds_fin_waybill_return_detail
+  where type in (0,1)
+    and user_type = 2
+    and pstng_date >= @pstng_date_start
+    and pstng_date <= @pstng_date_end
+    and vendor <> '999999'
+) as b
+group by zone_name,second_receipt_id,pstng_date,type
+union all
+select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       concat('ZV2_SH_KC_','WUMART') as flag
+  from 
+(select zone_id,zone_name,return_id,second_receipt_id,average_price*real_qty money,tax as tax_rate,type,pstng_date
+   from mds_fin_waybill_return_detail
+  where type in (0,1,2)
+    and user_type = 2
+    and pstng_date >= @pstng_date_start
+    and pstng_date <= @pstng_date_end
+    and vendor <> '999999'
+) as b
+group by zone_name,second_receipt_id,pstng_date,type
+
+union all
+select zone_name,second_receipt_id as receipt_id,'' as customer,'' as vendor,pstng_date,
+       round(sum(money),2) money,
+       concat('ZV2_SH_KC_','JISHOU') as flag
+  from 
+(select zone_id,zone_name,return_id,second_receipt_id,average_price*real_qty money,tax as tax_rate,type,pstng_date
+   from mds_fin_waybill_return_detail
+  where type = 2
+    and user_type = 2
+    and pstng_date >= @pstng_date_start
+    and pstng_date <= @pstng_date_end
+    and vendor <> '999999'
+) as b
+group by zone_name,second_receipt_id,pstng_date,type
+) as a
+join dim_fin_certificate_info_u8 f on f.flag=a.flag and zone_name=f.area
+
+update fin_certificate_zv2_detail_2 set doc_number = '11220201' where doc_number = '140501';
+update fin_certificate_zv2_detail_2 set doc_number = '12210203',dctype = 'D' where doc_number = '140502';
+update fin_certificate_zv2_detail_2 set dctype = 'D' where doc_number = '6401010103';
+update fin_certificate_zv2_detail_2 set dctype = 'D' where doc_number = '6401010202';
+
+
+
+drop table all_ka_zv2_data_01_06;
+create table  all_ka_zv2_data_01_06 as 
+select a.*,b.waybill_id,'' as project,'' as project_cate
+  from 
+(select * from fin_certificate_ka_zv2_detail_1
+ union all
+ select * from fin_certificate_ka_zv2_detail_2
+ ) as a 
+join 
+(select waybill_id,sale_id from mall_sale_head where day >= '2017-01-01' and day <= '2017-06-30') as b 
+on (a.receipt_id = b.sale_id)
+
 
 
 

@@ -51,7 +51,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_we;
         insert into fin_certificate_bsds_we
         select zone_name,sale_id as receipt_id,'''' as tax_rate,''WE'' as doc_type,''C'' as dctype,
                ''6401010201'' as doc_number,''050202'' as dd,'''' as project,'''' as project_cate,
-               round(sum(average_price*qty/(1+tax/100)),2) as money,''商贸公司'' as text,pstng_date,
+               round(sum(average_price*qty),2) as money,''商贸公司'' as text,pstng_date,
                '''' as customer,'''' as vendor
         from mds_fin_sale_detail
         where vendor=''01020007''
@@ -60,7 +60,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_we;
         union all 
         select zone_name,sale_id as receipt_id,tax as tax_rate,''WE'' as doc_type,''D'' as dctype,
                ''140502'' as doc_number,''050202'' as dd,'''' as project,'''' as project_cate,
-               round(sum(average_price*qty/(1+tax/100)),2) as money,
+               round(sum(average_price*qty),2) as money,
                ''商贸公司'' as text,pstng_date,'''' as customer,'''' as vendor
          from mds_fin_sale_detail
         where vendor=''01020007''
@@ -91,7 +91,7 @@ DROP PROCEDURE IF EXISTS fin_voucher_bsds_we;
 end
 //
 
-#call fin_voucher_dr('2017-05-01','2017-05-10',@dr_num);
+#call fin_voucher_bsds_we('2017-05-01','2017-05-10',@dr_num);
 
 
 
