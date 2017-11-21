@@ -105,7 +105,20 @@ select trim(trans_id) as transaction_id,
        concat(trim(dt),' ','00:00:00') as lkl_trans_time
   from ods.ods_fin_third_pay_lkl
  where dt = '$day'
-
+select trim(trans_id) as transaction_id,
+       case when pay_type = 'API_WXQRCODE' then 'WX_SM'
+            when pay_type = 'API_ZFBQRCODE' then 'ZFB_SM'
+            when pay_type = 'H5_WXJSAPI' then 'WX_GZH'
+            when pay_type = 'H5_ZFBJSAPI' then 'ZFB_GZH'
+         end as module,
+       cast(money as float) as money,
+       cast(counter_fee as float) as counter_fee,
+       0 rate,
+       concat_ws('-',substr(trans_time,0,4),substr(trans_time,5,2),substr(trans_time,7,2)) as transaction_time,
+       concat(trim(dt),' ','00:00:00') as lkl_trans_time
+  from ods.ods_fin_third_pay_zt
+ where money is not null
+   and dt = '$day'
 "
 #insert overwrite local directory '${datapath}'
  echo $sql

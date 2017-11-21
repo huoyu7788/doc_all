@@ -143,6 +143,19 @@ echo "开始计算数据 ：" `date +"%Y-%m-%d %H:%M:%S"`
 
    fi
 
+   #处理支付宝
+   if [ "ztpay" == $pay_type ]; then
+       
+       sed -i 's/|/,/g' $localdir/${dateago}.txt
+       
+       hive -S -e " load data local inpath '$localdir/${dateago}.txt' overwrite into table ods.ods_fin_third_pay_zt partition (dt='$day') "
+       
+       SetTagStatus -d ${day} -l day -b ods.ods_fin_third_pay_zt -p delete -n zhaoning -v F71596DBD2C47F3F1BF1CF305A6D3E8D   
+    
+       SetTagStatus -d ${day} -l day -b ods.ods_fin_third_pay_zt -p create -n zhaoning -v F71596DBD2C47F3F1BF1CF305A6D3E8D
+
+   fi
+
  echo "执行成功"
    
  else
